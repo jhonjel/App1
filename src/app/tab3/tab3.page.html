@@ -4,17 +4,49 @@
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>
-      Tab 3
+      Configuraciones
     </ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Tab 3</ion-title>
-    </ion-toolbar>
-  </ion-header>
 
+
+
+  <!-- Grupo de acordeones -->
+  <ion-accordion-group>
+    <ion-accordion value="first">
+      <ion-item slot="header" color="light">
+        <ion-label>Pantalla</ion-label>
+      </ion-item>
+      <div class="ion-padding" slot="content">
+        <ion-button [routerLink]="['/tabs/dark']" expand="block" color="primary">
+           Brillo
+        </ion-button>
+      </div>
+    </ion-accordion>
+
+    <ion-accordion value="second">
+      <ion-item slot="header" color="light">
+        <ion-label>Second Accordion</ion-label>
+      </ion-item>
+      <div class="ion-padding" slot="content">
+        
+      </div>
+    </ion-accordion>
+
+    <ion-accordion value="third">
+      <ion-item slot="header" color="light">
+        <ion-label>Third Accordion</ion-label>
+      </ion-item>
+      <div class="ion-padding" slot="content">
+        Third Content
+      </div>
+    </ion-accordion>
+  </ion-accordion-group>
+
+  <!-- Contenedor extra -->
   <app-explore-container name="Tab 3 page"></app-explore-container>
+
 </ion-content>
+
