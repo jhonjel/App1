@@ -5,7 +5,7 @@
 # 📱 Proyecto Ionic + Angular
 
 ## 👥 Integrantes
-- Jeferson Cuero  
+- Jefer Cuero  
 - Potosi Reyes  
 - Jennifer Mondragón  
 - Jhon Estupiñan  
@@ -27,6 +27,11 @@ Todo esto está centralizado en el archivo **`package.json`**, que funciona como
 npm install
 ````
 
+---
+---
+---
+SEMANA 3
+---
 ---
 
 ## 🛠 Tooling (herramientas de soporte)
@@ -81,6 +86,126 @@ ionic start <nombre>
 ```
 
 ---
+---
+---
+
+SEMANA 4 
+---
+---
+
+
+
+## 🚀 Componentes utilizados
+
+### 1. **ion-accordion**
+Permite organizar contenido en secciones desplegables.
+
+```html
+<ion-accordion-group>
+  <ion-accordion value="first">
+    <ion-item slot="header">
+      <ion-label>Primera Sección</ion-label>
+    </ion-item>
+    <div class="ion-padding" slot="content">
+      Contenido de la primera sección.
+    </div>
+  </ion-accordion>
+</ion-accordion-group>
+````
+
+---
+
+### 2. **ion-tabs**
+
+Facilita la navegación entre diferentes secciones de la aplicación.
+
+```html
+<ion-tabs>
+  <ion-tab-bar slot="bottom">
+    <ion-tab-button tab="home">
+      <ion-icon name="home"></ion-icon>
+      <ion-label>Inicio</ion-label>
+    </ion-tab-button>
+
+    <ion-tab-button tab="settings">
+      <ion-icon name="settings"></ion-icon>
+      <ion-label>Configuración</ion-label>
+    </ion-tab-button>
+  </ion-tab-bar>
+</ion-tabs>
+```
+
+---
+
+### 3. **Modo oscuro (Dark Mode)**
+
+Personaliza la interfaz de acuerdo a la preferencia del usuario.
+
+```html
+<ion-item>
+  <ion-label>Modo oscuro</ion-label>
+  <ion-toggle slot="end" (ionChange)="toggleDarkMode($event)"></ion-toggle>
+</ion-item>
+```
+
+```ts
+toggleDarkMode(event: any) {
+  document.body.classList.toggle('dark', event.detail.checked);
+}
+```
+
+---
+
+### 4. **ion-menu (Drawer / Side Menu)**
+
+Un menú lateral para acceder a diferentes secciones de la aplicación.
+
+```html
+<ion-menu contentId="main-content">
+  <ion-header>
+    <ion-toolbar color="primary">
+      <ion-title>Menú</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content>
+    <ion-list>
+      <ion-item routerLink="/home">Inicio</ion-item>
+      <ion-item routerLink="/dark">Modo Oscuro</ion-item>
+    </ion-list>
+  </ion-content>
+</ion-menu>
+
+<div id="main-content">
+  <ion-router-outlet></ion-router-outlet>
+</div>
+```
+
+---
+
+### 5. **ion-split-pane**
+
+Permite que el menú lateral se muestre fijo en pantallas grandes y como drawer en pantallas pequeñas.
+
+```html
+<ion-split-pane contentId="main">
+  <ion-menu contentId="main">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Opciones</ion-title>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content>
+      <ion-list>
+        <ion-item routerLink="/tab1">Tab 1</ion-item>
+        <ion-item routerLink="/tab2">Tab 2</ion-item>
+      </ion-list>
+    </ion-content>
+  </ion-menu>
+
+  <ion-router-outlet id="main"></ion-router-outlet>
+</ion-split-pane>
+```
 
 
 
