@@ -12,6 +12,32 @@
 
 ---
 ---
+Geolocalización en Ionic con @capacitor/geolocation  
+
+Este proyecto busca implementar geolocalización en una aplicación desarrollada con *Ionic Angular, tomando como ejemplo el caso de un **carro de basura* que muestra su ubicación en un mapa.  
+
+La app permite visualizar la *ubicación actual en tiempo real* del vehículo a través de las coordenadas GPS del dispositivo.  
+
+---  
+
+## 📲 Funcionamiento  
+- Obtiene las coordenadas (latitud y longitud) del carro de basura.  
+- Actualiza la posición en el mapa mientras el vehículo se mueve.  
+
+---  
+
+## ⚙️ Uso principal  
+- Mostrar la ubicación puntual del carro de basura.  
+- Seguir su recorrido en tiempo real durante la recolección de residuos.  
+
+---  
+
+## 🚀 Estado del proyecto  
+Por ahora, la app solo tiene implementada la *geolocalización básica*, que sirve como base inicial.  
+En el futuro se podrán añadir funciones como control de rutas, monitoreo de recorridos y optimización del servicio.
+
+
+
 
 ````markdown
 # 🌍 Geolocalización con Ionic + Leaflet + Capacitor
