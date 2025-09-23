@@ -5,7 +5,7 @@
 # 📱 Proyecto Ionic + Angular
 
 ## 👥 Integrantes
-- Jeferson Cuero  
+- Jefer Cuero  
 - Potosi Reyes  
 - Jennifer Mondragón  
 - Jhon Estupiñan  
