@@ -1,21 +1,22 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-menu-button></ion-menu-button>
-    </ion-buttons>
-    <ion-title>
-      Tab 1
-    </ion-title>
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Vehículos</ion-title>
   </ion-toolbar>
 </ion-header>
 
+<ion-content>
+  <ion-spinner *ngIf="cargando" name="crescent" class="ion-margin"></ion-spinner>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Tab 1</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <ion-list *ngIf="!cargando && vehiculos.length > 0">
+    <ion-item button detail="true" *ngFor="let v of vehiculos" (click)="seleccionarVehiculo(v)">
+      <ion-label>
+        <h2>{{ v.marca }} - {{ v.placa }}</h2>
+        <p>Modelo: {{ v.modelo }}</p>
+      </ion-label>
+    </ion-item>
+  </ion-list>
 
-  <app-explore-container name="Tab 1 page"></app-explore-container>
+  <ion-text color="danger" *ngIf="error">
+    <p class="ion-padding">{{ error }}</p>
+  </ion-text>
 </ion-content>
