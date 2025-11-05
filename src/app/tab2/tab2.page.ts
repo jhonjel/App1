@@ -7,10 +7,12 @@ import {
   NavController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { logOutOutline, playOutline, stopOutline, locationOutline, location, radioButtonOn } from 'ionicons/icons';
+import { logOutOutline, playOutline, stopOutline, locationOutline, location, radioButtonOn, arrowBack, arrowBackOutline } from 'ionicons/icons';
 import { VehiculoSeleccionadoService } from '../services/vehiculo-seleccionado';
 import { RecorridosService } from '../services/recorridos';
 import { environment } from '../../environments/environment';
+import { AuthService } from '../services/auth';
+
 
 declare var L: any;
 
@@ -58,16 +60,10 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   constructor(
     private vehiculoSeleccionadoService: VehiculoSeleccionadoService,
     private recorridosService: RecorridosService,
-    private navCtrl: NavController
+    private navCtrl: NavController,
+    private authService: AuthService // <-- Agregar esto
   ) {
-    addIcons({
-      logOutOutline,
-      playOutline,
-      stopOutline,
-      locationOutline,
-      location,
-      radioButtonOn
-    });
+    addIcons({arrowBackOutline,playOutline,stopOutline,radioButtonOn,location,locationOutline,arrowBack,logOutOutline});
 
     // Suscribirse a cambios del vehículo
     this.vehiculoSeleccionadoService.getVehiculoObservable().subscribe(vehiculo => {
@@ -442,4 +438,18 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     }
     this.navCtrl.navigateBack('/tabs/tab1');
   }
+
+
+  cerrarSesion() {
+  if (this.recorridoActivo) {
+    if (confirm('Hay un recorrido activo. ¿Deseas finalizarlo antes de cerrar sesión?')) {
+      this.finalizarRecorrido();
+    }
+  }
+
+  if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    this.authService.logout();
+    this.navCtrl.navigateRoot('/login');
+  }
+}
 }

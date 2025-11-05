@@ -1,0 +1,86 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/login"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Crear Cuenta</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="registro-container">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title class="ion-text-center">
+          Registro de Usuario
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <form (ngSubmit)="registro()">
+          <ion-item>
+            <ion-icon name="person-outline" slot="start"></ion-icon>
+            <ion-label position="floating">Nombre Completo</ion-label>
+            <ion-input
+              type="text"
+              [(ngModel)]="nombre"
+              name="nombre"
+              autocomplete="name"
+              [disabled]="cargando"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-icon name="mail-outline" slot="start"></ion-icon>
+            <ion-label position="floating">Email</ion-label>
+            <ion-input
+              type="email"
+              [(ngModel)]="email"
+              name="email"
+              autocomplete="email"
+              [disabled]="cargando"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-icon name="lock-closed-outline" slot="start"></ion-icon>
+            <ion-label position="floating">Contraseña (mín. 6 caracteres)</ion-label>
+            <ion-input
+              type="password"
+              [(ngModel)]="password"
+              name="password"
+              autocomplete="new-password"
+              [disabled]="cargando"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-icon name="lock-closed-outline" slot="start"></ion-icon>
+            <ion-label position="floating">Confirmar Contraseña</ion-label>
+            <ion-input
+              type="password"
+              [(ngModel)]="confirmarPassword"
+              name="confirmarPassword"
+              autocomplete="new-password"
+              [disabled]="cargando"
+            ></ion-input>
+          </ion-item>
+
+          <ion-text color="danger" *ngIf="error">
+            <p class="ion-text-center error-message">{{ error }}</p>
+          </ion-text>
+
+          <ion-button
+            expand="block"
+            type="submit"
+            [disabled]="cargando"
+            class="ion-margin-top"
+          >
+            <ion-spinner *ngIf="cargando" name="crescent"></ion-spinner>
+            <span *ngIf="!cargando">Crear Cuenta</span>
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

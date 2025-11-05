@@ -1,0 +1,70 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Iniciar Sesión</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="login-container">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title class="ion-text-center">
+          🚗 Seguimiento de Vehículos
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <form (ngSubmit)="login()">
+          <ion-item>
+            <ion-icon name="mail-outline" slot="start"></ion-icon>
+            <ion-label position="floating">Email</ion-label>
+            <ion-input
+              type="email"
+              [(ngModel)]="email"
+              name="email"
+              autocomplete="email"
+              [disabled]="cargando"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-icon name="lock-closed-outline" slot="start"></ion-icon>
+            <ion-label position="floating">Contraseña</ion-label>
+            <ion-input
+              type="password"
+              [(ngModel)]="password"
+              name="password"
+              autocomplete="current-password"
+              [disabled]="cargando"
+            ></ion-input>
+          </ion-item>
+
+          <ion-text color="danger" *ngIf="error">
+            <p class="ion-text-center error-message">{{ error }}</p>
+          </ion-text>
+
+          <ion-button
+            expand="block"
+            type="submit"
+            [disabled]="cargando"
+            class="ion-margin-top"
+          >
+            <ion-spinner *ngIf="cargando" name="crescent"></ion-spinner>
+            <span *ngIf="!cargando">Iniciar Sesión</span>
+          </ion-button>
+
+          <ion-button
+            expand="block"
+            fill="outline"
+            (click)="irARegistro()"
+            [disabled]="cargando"
+            class="ion-margin-top"
+          >
+            <ion-icon name="person-add-outline" slot="start"></ion-icon>
+            Crear Cuenta
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
