@@ -1,13 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule, NavController } from '@ionic/angular';
+import { RouterModule } from '@angular/router'; // 🆕 IMPORTAR
 import { VehiculosService } from '../services/vehiculos';
 import { VehiculoSeleccionadoService } from '../services/vehiculo-seleccionado';
+import { addIcons } from 'ionicons';
+import { addOutline, addCircleOutline, carOutline } from 'ionicons/icons'; // 🆕 IMPORTAR ICONOS
 
 @Component({
   selector: 'app-tab1',
   standalone: true,
-  imports: [IonicModule, CommonModule],
+  imports: [IonicModule, CommonModule, RouterModule], // 🆕 AGREGAR RouterModule
   templateUrl: './tab1.page.html',
   styleUrls: ['./tab1.page.scss']
 })
@@ -20,7 +23,10 @@ export class Tab1Page implements OnInit {
     private vehiculosService: VehiculosService,
     private vehiculoSeleccionadoService: VehiculoSeleccionadoService,
     private navCtrl: NavController
-  ) {}
+  ) {
+    // 🆕 Agregar iconos
+    addIcons({ addOutline, addCircleOutline, carOutline });
+  }
 
   ngOnInit() {
     this.cargarVehiculos();
@@ -29,6 +35,8 @@ export class Tab1Page implements OnInit {
   ionViewWillEnter() {
     // Limpiar el vehículo seleccionado al entrar a la página
     this.vehiculoSeleccionadoService.clearVehiculo();
+    // Recargar vehículos por si hay cambios
+    this.cargarVehiculos();
   }
 
   cargarVehiculos() {

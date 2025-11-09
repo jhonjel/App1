@@ -19,5 +19,9 @@ export const routes: Routes = [
     path: '**',
     redirectTo: 'login',
     pathMatch: 'full'
+  },
+  {
+    path: 'rutas',
+    loadComponent: () => import('./rutas/rutas.page').then( m => m.CrearRutaComponent)
   }
 ];

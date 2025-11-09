@@ -1,8 +1,8 @@
 <ion-header>
-  <ion-toolbar>
+  <ion-toolbar color="primary">
     <ion-buttons slot="start">
       <ion-button (click)="volverAVehiculos()">
-        <ion-icon name="arrow-back"></ion-icon>
+        <ion-icon name="arrow-back-outline"></ion-icon>
       </ion-button>
     </ion-buttons>
     <ion-title>Seguimiento GPS</ion-title>
@@ -16,18 +16,18 @@
 
 <ion-content [fullscreen]="true">
   <!-- Info del vehículo -->
-  <ion-card *ngIf="vehiculoSeleccionado">
+  <ion-card *ngIf="vehiculoSeleccionado" class="vehiculo-card">
     <ion-card-header>
       <ion-card-subtitle>Vehículo Seleccionado</ion-card-subtitle>
       <ion-card-title>{{ vehiculoSeleccionado.marca }} - {{ vehiculoSeleccionado.placa }}</ion-card-title>
     </ion-card-header>
     <ion-card-content>
-      <p>Modelo: {{ vehiculoSeleccionado.modelo }}</p>
+      <p><strong>Modelo:</strong> {{ vehiculoSeleccionado.modelo }}</p>
     </ion-card-content>
   </ion-card>
 
   <!-- Controles del recorrido -->
-  <ion-card>
+  <ion-card class="controles-card">
     <ion-card-content>
       <ion-grid>
         <ion-row>
@@ -57,7 +57,7 @@
       </ion-grid>
 
       <!-- Estado del recorrido -->
-      <ion-item *ngIf="recorridoActivo">
+      <ion-item *ngIf="recorridoActivo" lines="none" class="estado-item">
         <ion-icon name="radio-button-on" color="success" slot="start"></ion-icon>
         <ion-label>
           <h3>Recorrido en Curso</h3>
@@ -66,25 +66,98 @@
       </ion-item>
 
       <!-- Posición actual -->
-      <ion-item *ngIf="posicionActual">
+      <ion-item *ngIf="posicionActual" lines="none" class="posicion-item">
         <ion-icon name="location" color="primary" slot="start"></ion-icon>
         <ion-label>
           <h3>Ubicación Actual</h3>
-          <p>Lat: {{ posicionActual.latitud.toFixed(6) }}</p>
-          <p>Lng: {{ posicionActual.longitud.toFixed(6) }}</p>
-          <p *ngIf="posicionActual.precision_metros">
-            Precisión: {{ posicionActual.precision_metros.toFixed(0) }}m
-          </p>
+          <p>Lat: {{ posicionActual.lat.toFixed(6) }}</p>
+          <p>Lon: {{ posicionActual.lon.toFixed(6) }}</p>
         </ion-label>
       </ion-item>
     </ion-card-content>
   </ion-card>
 
+  <!-- 🗺️ PANEL DE RUTAS -->
+  <ion-card class="rutas-panel-card">
+    <ion-card-header>
+      <ion-card-title>Rutas Disponibles</ion-card-title>
+      <ion-card-subtitle *ngIf="rutasDisponibles.length > 0">
+        {{ rutasDisponibles.length }} ruta(s) disponible(s)
+      </ion-card-subtitle>
+    </ion-card-header>
+
+    <ion-card-content class="rutas-content">
+      <!-- Cargando rutas -->
+      <div *ngIf="cargandoRutas" class="ion-text-center ion-padding">
+        <ion-spinner name="crescent" color="primary"></ion-spinner>
+        <p>Cargando rutas...</p>
+      </div>
+
+      <!-- Botones de acción -->
+      <div *ngIf="!cargandoRutas && rutasDisponibles.length > 0" class="rutas-actions">
+        <ion-button
+          expand="block"
+          size="small"
+          color="success"
+          fill="outline"
+          (click)="mostrarTodasRutasEnMapa()"
+          class="ion-margin-bottom">
+          <ion-icon name="eye-outline" slot="start"></ion-icon>
+          Ver Todas
+        </ion-button>
+
+        <ion-button
+          expand="block"
+          size="small"
+          color="medium"
+          fill="outline"
+          (click)="limpiarRutasDelMapa()">
+          <ion-icon name="close-outline" slot="start"></ion-icon>
+          Limpiar
+        </ion-button>
+      </div>
+
+      <!-- Lista de rutas -->
+      <ion-list *ngIf="!cargandoRutas && rutasDisponibles.length > 0" class="rutas-list">
+        <ion-item
+          *ngFor="let ruta of rutasDisponibles"
+          [class.ruta-activa]="rutaSeleccionadaId === ruta.id"
+          class="ruta-item">
+
+          <!-- Información de la ruta -->
+          <ion-label (click)="mostrarRutaEnMapa(ruta.id)" class="ruta-info">
+            <h3>{{ ruta.nombre_ruta }}</h3>
+            <p *ngIf="ruta.shape?.coordinates">
+              📍 {{ ruta.shape.coordinates.length }} puntos
+            </p>
+          </ion-label>
+
+          <!-- Botón para ocultar -->
+          <ion-button
+            *ngIf="rutaSeleccionadaId === ruta.id"
+            slot="end"
+            fill="clear"
+            color="danger"
+            size="small"
+            (click)="ocultarRutaDelMapa(ruta.id)">
+            <ion-icon name="eye-off-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-list>
+
+      <!-- Sin rutas -->
+      <ion-text color="medium" *ngIf="!cargandoRutas && rutasDisponibles.length === 0" class="ion-text-center ion-padding">
+        <p>No hay rutas disponibles</p>
+        <p><small>Crea una ruta desde el Tab1</small></p>
+      </ion-text>
+    </ion-card-content>
+  </ion-card>
+
   <!-- Contenedor del mapa -->
-  <div id="map" style="height: 400px; width: 100%;"></div>
+  <div id="map" class="map-container"></div>
 
   <!-- Historial de posiciones -->
-  <ion-card *ngIf="ultimasPosiciones.length > 0">
+  <ion-card *ngIf="ultimasPosiciones.length > 0" class="posiciones-card">
     <ion-card-header>
       <ion-card-title>Últimas Posiciones</ion-card-title>
     </ion-card-header>
@@ -94,7 +167,7 @@
           <ion-icon name="location-outline" slot="start"></ion-icon>
           <ion-label>
             <h3>Posición #{{ posicionesCount - i }}</h3>
-            <p>{{ pos.latitud.toFixed(6) }}, {{ pos.longitud.toFixed(6) }}</p>
+            <p>{{ pos.lat.toFixed(6) }}, {{ pos.lon.toFixed(6) }}</p>
             <p class="ion-text-wrap" *ngIf="pos.fecha_registro">
               <small>{{ pos.fecha_registro | date:'short' }}</small>
             </p>

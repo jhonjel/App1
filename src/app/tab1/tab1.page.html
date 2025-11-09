@@ -1,14 +1,48 @@
 <ion-header>
   <ion-toolbar color="primary">
     <ion-title>Vehículos</ion-title>
+    <!-- 🆕 Botón para crear ruta en la esquina derecha -->
+    <ion-buttons slot="end">
+      <ion-button routerLink="/tabs/crear-ruta" color="light">
+        <ion-icon name="add-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
   <ion-spinner *ngIf="cargando" name="crescent" class="ion-margin"></ion-spinner>
 
+  <!-- 📍 Tarjeta de información útil -->
+  <ion-card *ngIf="!cargando && vehiculos.length > 0" class="info-card">
+    <ion-card-header>
+      <ion-card-title>¿Qué deseas hacer?</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <p class="info-text">
+        Selecciona un vehículo para iniciar un recorrido o crea una nueva ruta.
+      </p>
+      <ion-button
+        expand="block"
+        color="success"
+        routerLink="/tabs/crear-ruta"
+        fill="outline"
+        class="ion-margin-top">
+        <ion-icon name="add-circle-outline" slot="start"></ion-icon>
+        Crear Nueva Ruta
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- 🚗 Lista de vehículos -->
   <ion-list *ngIf="!cargando && vehiculos.length > 0">
+    <ion-list-header>
+      <ion-label>
+        <h2>Mis Vehículos</h2>
+      </ion-label>
+    </ion-list-header>
     <ion-item button detail="true" *ngFor="let v of vehiculos" (click)="seleccionarVehiculo(v)">
+      <ion-icon name="car-outline" slot="start" color="primary"></ion-icon>
       <ion-label>
         <h2>{{ v.marca }} - {{ v.placa }}</h2>
         <p>Modelo: {{ v.modelo }}</p>
@@ -16,6 +50,14 @@
     </ion-item>
   </ion-list>
 
+  <!-- ⚠️ Sin vehículos -->
+  <div *ngIf="!cargando && vehiculos.length === 0" class="empty-state">
+    <ion-icon name="car-outline" class="empty-icon"></ion-icon>
+    <h2>No hay vehículos registrados</h2>
+    <p>Registra tu primer vehículo para comenzar</p>
+  </div>
+
+  <!-- ❌ Error -->
   <ion-text color="danger" *ngIf="error">
     <p class="ion-padding">{{ error }}</p>
   </ion-text>

@@ -1,0 +1,218 @@
+/* Archivo: src/app/rutas/crear-ruta.component.scss */
+
+ion-card {
+  margin-bottom: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+ion-card-header {
+  padding-bottom: 1rem;
+}
+
+ion-card-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1d1d1d;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+ion-card-subtitle {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* Listas */
+.calles-list,
+.coordenadas-list {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.calle-item {
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+}
+
+ion-item-group {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+ion-item-divider {
+  height: 8px;
+  background: transparent;
+}
+
+/* Inputs */
+ion-input {
+  font-size: 1rem;
+}
+
+ion-label {
+  color: #666;
+  font-weight: 500;
+}
+
+/* Botones */
+ion-button {
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+ion-button[expand="block"] {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Tarjeta de éxito */
+.success-card {
+  animation: slideInUp 0.4s ease-out;
+}
+
+.success-icon {
+  font-size: 2rem;
+  color: #2dd36f;
+  margin-right: 8px;
+}
+
+.success-card ion-card-title {
+  color: #2dd36f;
+  font-size: 1.3rem;
+}
+
+.success-card p {
+  margin: 0.5rem 0;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.success-card strong {
+  color: #1d1d1d;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  border-radius: 0;
+}
+
+.loading-overlay ion-spinner {
+  --color: #fff;
+}
+
+/* Badges */
+.calles-seleccionadas {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+ion-note {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.badge-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+ion-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.badge-close {
+  cursor: pointer;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Animaciones */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  ion-card {
+    margin-bottom: 1rem;
+  }
+
+  ion-card-title {
+    font-size: 1rem;
+  }
+
+  ion-item-group {
+    padding: 0.75rem;
+  }
+
+  .calles-seleccionadas {
+    padding: 0.75rem;
+  }
+}
+
+/* Estados de botones deshabilitados */
+ion-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Checkbox personalizado */
+ion-checkbox {
+  --size: 24px;
+  margin-right: 1rem;
+}
+
+/* Items */
+ion-item {
+  --background: transparent;
+  --highlight-height: 0;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+
+  &.calle-seleccionada {
+    --background: rgba(102, 126, 234, 0.1);
+  }
+
+  &:hover {
+    --background: #f8f9fa;
+  }
+}
+
+/* Spinner */
+ion-spinner {
+  --color: #667eea;
+}

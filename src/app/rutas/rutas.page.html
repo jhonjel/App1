@@ -1,0 +1,244 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon slot="icon-only" name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Crear Nueva Ruta</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- ✅ Mensaje de éxito -->
+  <div *ngIf="rutaCreada" class="success-card">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="checkmark-outline" class="success-icon"></ion-icon>
+          ¡Ruta Creada Exitosamente!
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p><strong>Nombre:</strong> {{ rutaCreadadData?.nombre_ruta }}</p>
+        <p><strong>ID:</strong> {{ rutaCreadadData?.id }}</p>
+        <p><strong>Fecha:</strong> {{ rutaCreadadData?.created_at | date:'short' }}</p>
+
+        <ion-button
+          expand="block"
+          color="primary"
+          (click)="reiniciarFormulario()"
+          class="ion-margin-top">
+          Crear Otra Ruta
+        </ion-button>
+        <ion-button
+          expand="block"
+          color="secondary"
+          (click)="volver()">
+          Volver a Vehículos
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <!-- 📝 Formulario -->
+  <div *ngIf="!rutaCreada">
+    <!-- Información básica -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Información de la Ruta</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label position="floating">Nombre de la Ruta</ion-label>
+          <ion-input
+            [(ngModel)]="nombreRuta"
+            placeholder="Ej: Ruta Centro - Sur"
+            type="text">
+          </ion-input>
+        </ion-item>
+
+        <ion-item class="ion-margin-top">
+          <ion-label>Tipo de Ruta:</ion-label>
+        </ion-item>
+
+        <ion-item>
+          <ion-label>Por Unión de Calles</ion-label>
+          <ion-checkbox
+            [(ngModel)]="tipoRuta"
+            [value]="'calles'"
+            (ionChange)="tipoRuta = 'calles'">
+          </ion-checkbox>
+        </ion-item>
+
+        <ion-item>
+          <ion-label>Por Geometría Directa</ion-label>
+          <ion-checkbox
+            [(ngModel)]="tipoRuta"
+            [value]="'geometria'"
+            (ionChange)="tipoRuta = 'geometria'">
+          </ion-checkbox>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- 🛣️ OPCIÓN A: Por Unión de Calles -->
+    <div *ngIf="tipoRuta === 'calles'">
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>Seleccionar Calles</ion-card-title>
+          <ion-card-subtitle>
+            {{ callesSeleccionadas.length }} calle(s) seleccionada(s)
+          </ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <!-- Buscador -->
+          <ion-searchbar
+            [(ngModel)]="busquedaCalles"
+            placeholder="Buscar por nombre o UUID..."
+            animated="true"
+            debounce="300"
+            class="ion-margin-bottom">
+          </ion-searchbar>
+
+          <!-- Calles seleccionadas (resumen) -->
+          <div *ngIf="callesSeleccionadas.length > 0" class="calles-seleccionadas">
+            <ion-note>Calles seleccionadas:</ion-note>
+            <div class="badge-container">
+              <ion-badge *ngFor="let calle of callesSeleccionadas" color="primary">
+                {{ calle.nombre }}
+                <ion-icon
+                  name="close-outline"
+                  class="badge-close"
+                  (click)="removerCalle(calle.id)">
+                </ion-icon>
+              </ion-badge>
+            </div>
+            <ion-button
+              fill="clear"
+              color="danger"
+              size="small"
+              (click)="limpiarSeleccion()"
+              class="ion-margin-top">
+              <ion-icon name="trash-outline" slot="start"></ion-icon>
+              Limpiar selección
+            </ion-button>
+          </div>
+
+          <!-- Cargando calles -->
+          <div *ngIf="cargandoCalles" class="ion-text-center ion-padding">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Cargando calles...</p>
+          </div>
+
+          <!-- Lista de calles disponibles -->
+          <ion-list *ngIf="!cargandoCalles" class="calles-list">
+            <ion-item
+              *ngFor="let calle of callesFiltradas"
+              button
+              (click)="seleccionarCalle(calle)"
+              [class.calle-seleccionada]="estaSeleccionada(calle)"
+              class="calle-item">
+              <ion-icon
+                name="checkmark-circle"
+                slot="start"
+                [color]="estaSeleccionada(calle) ? 'success' : 'medium'">
+              </ion-icon>
+              <ion-label>
+                <h3>{{ calle.nombre || 'Sin nombre' }}</h3>
+                <p>{{ calle.id }}</p>
+              </ion-label>
+            </ion-item>
+          </ion-list>
+
+          <!-- Sin resultados -->
+          <ion-text color="medium" *ngIf="!cargandoCalles && callesFiltradas.length === 0" class="ion-text-center ion-padding">
+            <p>No se encontraron calles</p>
+          </ion-text>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <!-- 🗺️ OPCIÓN B: Por Geometría Directa -->
+    <div *ngIf="tipoRuta === 'geometria'">
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>Coordenadas de la Ruta</ion-card-title>
+          <ion-card-subtitle>
+            Ingresa las coordenadas (Latitud, Longitud) de los puntos
+          </ion-card-subtitle>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-list class="coordenadas-list">
+            <ion-item-group *ngFor="let coord of coordenadas; let i = index">
+              <ion-item-divider *ngIf="i > 0"></ion-item-divider>
+              <ion-item>
+                <ion-label position="floating">Punto {{ i + 1 }} - Latitud</ion-label>
+                <ion-input
+                  [(ngModel)]="coordenadas[i].lat"
+                  type="number"
+                  step="0.0001"
+                  placeholder="ej: 4.7110">
+                </ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-label position="floating">Punto {{ i + 1 }} - Longitud</ion-label>
+                <ion-input
+                  [(ngModel)]="coordenadas[i].lng"
+                  type="number"
+                  step="0.0001"
+                  placeholder="ej: -74.0721">
+                </ion-input>
+              </ion-item>
+              <ion-button
+                *ngIf="coordenadas.length > 2"
+                fill="clear"
+                color="danger"
+                (click)="eliminarCoordenada(i)"
+                class="ion-margin-top">
+                <ion-icon name="close-outline" slot="start"></ion-icon>
+                Eliminar Punto
+              </ion-button>
+            </ion-item-group>
+          </ion-list>
+
+          <ion-button
+            expand="block"
+            fill="outline"
+            (click)="agregarCoordenada()"
+            class="ion-margin-top">
+            + Agregar Punto
+          </ion-button>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <!-- 🔘 Botones de acción -->
+    <ion-card>
+      <ion-card-content class="ion-padding">
+        <ion-button
+          expand="block"
+          color="success"
+          (click)="crearRuta()"
+          [disabled]="!esValido() || cargando">
+          <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+          {{ cargando ? 'Creando Ruta...' : 'Crear Ruta' }}
+        </ion-button>
+
+        <ion-button
+          expand="block"
+          color="medium"
+          (click)="volver()"
+          [disabled]="cargando">
+          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+          Cancelar
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- ⏳ Spinner de carga -->
+    <div *ngIf="cargando" class="loading-overlay">
+      <ion-spinner></ion-spinner>
+    </div>
+  </div>
+</ion-content>

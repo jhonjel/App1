@@ -4,22 +4,21 @@ import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonMenuButton,
   IonButton, IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonCardSubtitle, IonGrid, IonRow, IonCol, IonItem, IonLabel, IonList,
-  NavController
+  NavController, IonText, IonSpinner
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { logOutOutline, playOutline, stopOutline, locationOutline, location, radioButtonOn, arrowBack, arrowBackOutline } from 'ionicons/icons';
+import { logOutOutline, playOutline, stopOutline, locationOutline, location, radioButtonOn, arrowBack, arrowBackOutline, eyeOutline, closeOutline, eyeOffOutline } from 'ionicons/icons';
 import { VehiculoSeleccionadoService } from '../services/vehiculo-seleccionado';
 import { RecorridosService } from '../services/recorridos';
+import { RutasService } from '../services/rutas';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth';
-
 
 declare var L: any;
 
 interface Posicion {
-  latitud: number;
-  longitud: number;
-  precision_metros?: number;
+  lat: number;
+  lon: number;
   fecha_registro?: Date;
 }
 
@@ -39,17 +38,28 @@ interface Vehiculo {
     CommonModule,
     IonButtons, IonHeader, IonToolbar, IonTitle, IonContent,
     IonButton, IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-    IonCardSubtitle, IonGrid, IonRow, IonCol, IonItem, IonLabel, IonList
-]
+    IonCardSubtitle, IonGrid, IonRow, IonCol, IonItem, IonLabel, IonList,
+    IonText, IonSpinner
+  ]
 })
 export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
+  // Vehículo
   vehiculoSeleccionado: Vehiculo | null = null;
+
+  // Recorrido
   recorridoActivo = false;
   recorridoActualId: string | null = null;
   posicionActual: Posicion | null = null;
   posicionesCount = 0;
   ultimasPosiciones: Posicion[] = [];
 
+  // Rutas
+  rutasDisponibles: any[] = [];
+  rutaSeleccionadaId: string | null = null;
+  cargandoRutas = false;
+  capasRutas: Map<string, any> = new Map();
+
+  // Mapa
   private map: any;
   private marker: any;
   private polyline: any;
@@ -60,12 +70,15 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   constructor(
     private vehiculoSeleccionadoService: VehiculoSeleccionadoService,
     private recorridosService: RecorridosService,
+    private rutasService: RutasService,
     private navCtrl: NavController,
-    private authService: AuthService // <-- Agregar esto
+    private authService: AuthService
   ) {
-    addIcons({arrowBackOutline,playOutline,stopOutline,radioButtonOn,location,locationOutline,arrowBack,logOutOutline});
+    addIcons({
+      arrowBackOutline, playOutline, stopOutline, radioButtonOn, location,
+      locationOutline, arrowBack, logOutOutline, eyeOutline, closeOutline, eyeOffOutline
+    });
 
-    // Suscribirse a cambios del vehículo
     this.vehiculoSeleccionadoService.getVehiculoObservable().subscribe(vehiculo => {
       console.log('🔔 Vehículo actualizado:', vehiculo);
       this.vehiculoSeleccionado = vehiculo;
@@ -73,13 +86,12 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit() {
-    // Obtener el vehículo seleccionado
     this.vehiculoSeleccionado = this.vehiculoSeleccionadoService.getVehiculo();
     console.log('🚗 Vehículo en ngOnInit:', this.vehiculoSeleccionado);
+    this.cargarRutasDisponibles();
   }
 
   ionViewWillEnter() {
-    // Este método se ejecuta cada vez que se entra a la página
     this.vehiculoSeleccionado = this.vehiculoSeleccionadoService.getVehiculo();
     console.log('🚗 Vehículo en ionViewWillEnter:', this.vehiculoSeleccionado);
 
@@ -106,6 +118,8 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       this.map.remove();
     }
   }
+
+  // ==================== MAPA ====================
 
   cargarLeaflet() {
     if (this.leafletLoaded) {
@@ -186,27 +200,27 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+        const lon = position.coords.longitude;
 
         this.posicionActual = {
-          latitud: lat,
-          longitud: lng,
-          precision_metros: position.coords.accuracy
+          lat: lat,
+          lon: lon,
+          fecha_registro: new Date()
         };
 
         if (this.map) {
-          this.map.setView([lat, lng], 15);
+          this.map.setView([lat, lon], 15);
 
           if (this.marker) {
-            this.marker.setLatLng([lat, lng]);
+            this.marker.setLatLng([lat, lon]);
           } else {
-            this.marker = L.marker([lat, lng]).addTo(this.map)
+            this.marker = L.marker([lat, lon]).addTo(this.map)
               .bindPopup('Tu ubicación actual')
               .openPopup();
           }
         }
 
-        console.log('✅ Ubicación obtenida:', lat, lng);
+        console.log('✅ Ubicación obtenida:', lat, lon);
       },
       (error) => {
         console.error('❌ Error obteniendo ubicación:', error);
@@ -234,66 +248,76 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     );
   }
 
+  // ==================== RECORRIDO ====================
+
   async iniciarRecorrido() {
-    console.log('🎬 Iniciando recorrido...');
+  console.log('🎬 Iniciando recorrido...');
 
-    if (!this.vehiculoSeleccionado) {
-      alert('No hay vehículo seleccionado');
-      return;
-    }
-
-    if (!this.posicionActual) {
-      alert('Esperando ubicación GPS...');
-      this.obtenerUbicacionActual();
-      return;
-    }
-
-    if (this.recorridoActivo) {
-      alert('Ya hay un recorrido en curso');
-      return;
-    }
-
-    try {
-      // Generar IDs únicos
-      const rutaId = this.generarUUID();
-      const vehiculoId = this.vehiculoSeleccionado.id.toString();
-      const perfilId = environment.tokenSecret;
-
-      const nuevoRecorrido = {
-        ruta_id: rutaId,
-        vehiculo_id: vehiculoId,
-        perfil_id: perfilId
-      };
-
-      console.log('📤 Enviando recorrido:', nuevoRecorrido);
-
-      this.recorridosService.iniciarRecorrido(nuevoRecorrido).subscribe({
-        next: (response) => {
-          console.log('✅ Recorrido iniciado:', response);
-
-          // Guardar el ID del recorrido que devuelve la API
-          this.recorridoActualId = response.data?.id || response.id || rutaId;
-          this.recorridoActivo = true;
-          this.posicionesCount = 0;
-          this.todasPosiciones = [];
-          this.ultimasPosiciones = [];
-
-          // Iniciar seguimiento GPS
-          this.iniciarSeguimiento();
-
-          alert('Recorrido iniciado correctamente');
-        },
-        error: (error) => {
-          console.error('❌ Error iniciando recorrido:', error);
-          alert(error?.error?.message || 'Error al iniciar recorrido. Verifica tu conexión.');
-        }
-      });
-
-    } catch (error: any) {
-      console.error('❌ Error:', error);
-      alert('Error inesperado al iniciar recorrido');
-    }
+  if (!this.vehiculoSeleccionado) {
+    alert('No hay vehículo seleccionado');
+    return;
   }
+
+  if (!this.posicionActual) {
+    alert('Esperando ubicación GPS...');
+    this.obtenerUbicacionActual();
+    return;
+  }
+
+  if (this.recorridoActivo) {
+    alert('Ya hay un recorrido en curso');
+    return;
+  }
+
+  try {
+    // ✅ Si hay una ruta seleccionada, usarla. Si no, generar UUID
+    const rutaId = this.rutaSeleccionadaId || this.generarUUID();
+
+    // ✅ Convertir vehiculoId a string si es número
+    const vehiculoId = String(this.vehiculoSeleccionado.id);
+
+    // ✅ Usar el perfil_id correcto
+    const perfilId = environment.tokenSecret;
+
+    const nuevoRecorrido = {
+      ruta_id: rutaId,
+      vehiculo_id: vehiculoId,
+      perfil_id: perfilId
+    };
+
+    console.log('📤 Enviando recorrido:', nuevoRecorrido);
+
+    this.recorridosService.iniciarRecorrido(nuevoRecorrido).subscribe({
+      next: (response) => {
+        console.log('✅ Recorrido iniciado:', response);
+
+        // El servidor retorna el ID del recorrido
+        this.recorridoActualId = response.data?.id || rutaId;
+        this.recorridoActivo = true;
+        this.posicionesCount = 0;
+        this.todasPosiciones = [];
+        this.ultimasPosiciones = [];
+
+        this.iniciarSeguimiento();
+        alert('Recorrido iniciado correctamente');
+      },
+      error: (error) => {
+        console.error('❌ Error iniciando recorrido:', error);
+        console.error('❌ Response:', error.error);
+
+        const mensaje = error?.error?.message ||
+                       error?.error?.errors?.ruta_id?.[0] ||
+                       'Error al iniciar recorrido. Verifica tu conexión.';
+
+        alert(mensaje);
+      }
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error:', error);
+    alert('Error inesperado al iniciar recorrido');
+  }
+}
 
   iniciarSeguimiento() {
     if (!('geolocation' in navigator)) {
@@ -324,48 +348,47 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
+    const lon = position.coords.longitude;
 
     const nuevaPosicion: Posicion = {
-      latitud: lat,
-      longitud: lng,
-      precision_metros: position.coords.accuracy,
+      lat: lat,
+      lon: lon,
       fecha_registro: new Date()
     };
 
     this.posicionActual = nuevaPosicion;
 
     try {
-      // Enviar posición a la API
+      // ✅ Nombres correctos según la API
       const dataPosicion = {
-        latitud: lat,
-        longitud: lng,
-        precision_metros: position.coords.accuracy
+        lat: lat,
+        lon: lon,
+        perfil_id: environment.tokenSecret
       };
+
+      console.log(`📍 Enviando posición ${this.posicionesCount + 1}:`, dataPosicion);
 
       this.recorridosService.registrarPosicion(this.recorridoActualId, dataPosicion).subscribe({
         next: (response) => {
-          console.log(`📍 Posición ${this.posicionesCount + 1} guardada en API`);
+          console.log(`📍 Posición ${this.posicionesCount + 1} guardada en API:`, response);
         },
         error: (error) => {
           console.error('❌ Error guardando posición en API:', error);
         }
       });
 
-      // Actualizar interfaz
       this.posicionesCount++;
       this.ultimasPosiciones.unshift(nuevaPosicion);
       if (this.ultimasPosiciones.length > 5) {
         this.ultimasPosiciones.pop();
       }
 
-      // Actualizar mapa
       if (this.map) {
         if (this.marker) {
-          this.marker.setLatLng([lat, lng]);
+          this.marker.setLatLng([lat, lon]);
         }
 
-        this.todasPosiciones.push([lat, lng]);
+        this.todasPosiciones.push([lat, lon]);
 
         if (this.polyline) {
           this.polyline.setLatLngs(this.todasPosiciones);
@@ -376,7 +399,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
           }).addTo(this.map);
         }
 
-        this.map.setView([lat, lng]);
+        this.map.setView([lat, lon]);
       }
 
     } catch (error) {
@@ -422,6 +445,165 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  // ==================== RUTAS ====================
+
+  cargarRutasDisponibles() {
+    this.cargandoRutas = true;
+    const perfilId = environment.tokenSecret;
+
+    this.rutasService.obtenerRutas(perfilId).subscribe({
+      next: (response) => {
+        this.rutasDisponibles = response.data || [];
+        this.cargandoRutas = false;
+        console.log(`✅ ${this.rutasDisponibles.length} rutas cargadas`);
+      },
+      error: (error) => {
+        console.error('❌ Error cargando rutas:', error);
+        this.cargandoRutas = false;
+      }
+    });
+  }
+
+  mostrarRutaEnMapa(rutaId: string) {
+    if (!this.map) {
+      console.warn('⚠️ El mapa no está inicializado');
+      return;
+    }
+
+    if (this.rutaSeleccionadaId && this.capasRutas.has(this.rutaSeleccionadaId)) {
+      const capaAnterior = this.capasRutas.get(this.rutaSeleccionadaId);
+      this.map.removeLayer(capaAnterior);
+    }
+
+    // ✅ Pasar perfil_id al obtener ruta
+    const perfilId = environment.tokenSecret;
+
+    this.rutasService.obtenerRuta(rutaId, perfilId).subscribe({
+      next: (response) => {
+        const ruta = response.data || response;
+        console.log('📍 Ruta obtenida:', ruta);
+
+        if (ruta.shape && ruta.shape.coordinates) {
+          this.dibujarRutaEnMapa(ruta);
+        } else {
+          console.warn('⚠️ La ruta no tiene geometría');
+        }
+
+        this.rutaSeleccionadaId = rutaId;
+      },
+      error: (error) => {
+        console.error('❌ Error obteniendo ruta:', error);
+        alert('Error al obtener la ruta. Verifica tu conexión.');
+      }
+    });
+  }
+
+  private dibujarRutaEnMapa(ruta: any) {
+    if (!this.map || !ruta.shape || !ruta.shape.coordinates) {
+      return;
+    }
+
+    try {
+      const coordenadas = ruta.shape.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
+
+      const polyline = L.polyline(coordenadas, {
+        color: '#667eea',
+        weight: 4,
+        opacity: 0.8,
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: '5, 5'
+      });
+
+      polyline.bindPopup(`
+        <div class="ruta-popup">
+          <strong>${ruta.nombre_ruta}</strong>
+          <br>
+          <small>Puntos: ${coordenadas.length}</small>
+        </div>
+      `);
+
+      polyline.addTo(this.map);
+      this.capasRutas.set(ruta.id, polyline);
+
+      const bounds = polyline.getBounds();
+      this.map.fitBounds(bounds, { padding: [50, 50] });
+
+      console.log(`✅ Ruta "${ruta.nombre_ruta}" dibujada en el mapa`);
+    } catch (error) {
+      console.error('❌ Error dibujando ruta:', error);
+    }
+  }
+
+  ocultarRutaDelMapa(rutaId: string) {
+    if (this.capasRutas.has(rutaId)) {
+      const capa = this.capasRutas.get(rutaId);
+      this.map.removeLayer(capa);
+      this.capasRutas.delete(rutaId);
+      this.rutaSeleccionadaId = null;
+      console.log(`✅ Ruta ocultada del mapa`);
+    }
+  }
+
+  mostrarTodasRutasEnMapa() {
+    if (!this.map) {
+      console.warn('⚠️ El mapa no está inicializado');
+      return;
+    }
+
+    const colores = ['#667eea', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'];
+    let colorIndex = 0;
+
+    this.rutasDisponibles.forEach((ruta) => {
+      if (ruta.shape && ruta.shape.coordinates && ruta.shape.coordinates.length > 0) {
+        try {
+          const coordenadas = ruta.shape.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
+          const color = colores[colorIndex % colores.length];
+
+          const polyline = L.polyline(coordenadas, {
+            color: color,
+            weight: 3,
+            opacity: 0.6,
+            lineCap: 'round',
+            lineJoin: 'round'
+          });
+
+          polyline.bindPopup(`
+            <div class="ruta-popup">
+              <strong>${ruta.nombre_ruta}</strong>
+              <br>
+              <small>Puntos: ${coordenadas.length}</small>
+            </div>
+          `);
+
+          polyline.addTo(this.map);
+          this.capasRutas.set(ruta.id, polyline);
+
+          colorIndex++;
+          console.log(`✅ Ruta "${ruta.nombre_ruta}" agregada al mapa`);
+        } catch (error) {
+          console.error(`❌ Error dibujando ruta ${ruta.nombre_ruta}:`, error);
+        }
+      }
+    });
+
+    if (this.capasRutas.size > 0) {
+      const grupo = L.featureGroup(Array.from(this.capasRutas.values()));
+      this.map.fitBounds(grupo.getBounds(), { padding: [50, 50] });
+    }
+  }
+
+  limpiarRutasDelMapa() {
+    this.capasRutas.forEach(capa => {
+      this.map.removeLayer(capa);
+    });
+    this.capasRutas.clear();
+    this.rutaSeleccionadaId = null;
+    console.log('✅ Todas las rutas eliminadas del mapa');
+  }
+
+  // ==================== UTILIDADES ====================
+
   private generarUUID(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
       const r = Math.random() * 16 | 0;
@@ -439,17 +621,16 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     this.navCtrl.navigateBack('/tabs/tab1');
   }
 
-
   cerrarSesion() {
-  if (this.recorridoActivo) {
-    if (confirm('Hay un recorrido activo. ¿Deseas finalizarlo antes de cerrar sesión?')) {
-      this.finalizarRecorrido();
+    if (this.recorridoActivo) {
+      if (confirm('Hay un recorrido activo. ¿Deseas finalizarlo antes de cerrar sesión?')) {
+        this.finalizarRecorrido();
+      }
+    }
+
+    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+      this.authService.logout();
+      this.navCtrl.navigateRoot('/login');
     }
   }
-
-  if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-    this.authService.logout();
-    this.navCtrl.navigateRoot('/login');
-  }
-}
 }
