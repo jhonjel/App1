@@ -332,15 +332,48 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
 
       this.recorridosService.iniciarRecorrido(nuevoRecorrido).subscribe({
         next: (response) => {
-          console.log('✅ Recorrido iniciado:', response);
+          console.log('✅ Recorrido iniciado - RESPUESTA COMPLETA:', response);
+          console.log('📋 Estructura de response:', {
+            tieneData: !!response.data,
+            dataTipo: typeof response.data,
+            dataKeys: Object.keys(response.data || {}),
+            id: response.data?.id,
+            _id: (response.data as any)?._id,
+            recorrido_id: (response.data as any)?.recorrido_id,
+            message: response.message,
+            allKeys: Object.keys(response)
+          });
 
-          // El servidor retorna el ID del recorrido
-          this.recorridoActualId = response.data?.id || this.generarUUID();
+          // ✅ Intentar obtener el ID de diferentes formas
+          let recorridoId = response.data?.id ||
+                           (response.data as any)?._id ||
+                           (response.data as any)?.recorrido_id ||
+                           (response as any)?.id;
+
+          console.log('🔍 ID obtenido de:', {
+            'response.data?.id': response.data?.id,
+            'response.data?._id': (response.data as any)?._id,
+            'response.data?.recorrido_id': (response.data as any)?.recorrido_id,
+            'response?.id': (response as any)?.id,
+            idFinal: recorridoId
+          });
+
+          // ✅ Guardar el ID del recorrido retornado por la API
+          this.recorridoActualId = recorridoId;
+
+          if (!this.recorridoActualId) {
+            console.error('❌ La API no retornó un ID de recorrido válido');
+            console.error('❌ RESPUESTA COMPLETA:', JSON.stringify(response, null, 2));
+            alert('Error: No se recibió ID del recorrido. Verifica los logs de consola.');
+            return;
+          }
+
           this.recorridoActivo = true;
           this.posicionesCount = 0;
           this.todasPosiciones = [];
           this.ultimasPosiciones = [];
 
+          console.log(`🔑 ID del recorrido guardado: ${this.recorridoActualId}`);
           this.iniciarSeguimiento();
           alert('Recorrido iniciado correctamente');
         },
@@ -453,9 +486,12 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
 
   async finalizarRecorrido() {
     console.log('🛑 Finalizando recorrido...');
+    console.log(`📋 ID del recorrido a finalizar: ${this.recorridoActualId}`);
 
     if (!this.recorridoActivo || !this.recorridoActualId) {
       alert('No hay recorrido activo');
+      console.warn('⚠️ recorridoActivo:', this.recorridoActivo);
+      console.warn('⚠️ recorridoActualId:', this.recorridoActualId);
       return;
     }
 
@@ -468,9 +504,20 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
         perfil_id: environment.tokenSecret
       };
 
+      console.log('📤 Datos a enviar:', {
+        recorridoId: this.recorridoActualId,
+        data: dataFinalizar
+      });
+
       this.recorridosService.finalizarRecorrido(this.recorridoActualId, dataFinalizar).subscribe({
         next: (response) => {
           console.log('✅ Recorrido finalizado:', response);
+          console.log('📊 Resumen del recorrido:', {
+            id: response.data?.id,
+            estado: response.data?.estado,
+            fecha_fin: response.data?.fecha_fin,
+            total_posiciones: response.data?.total_posiciones
+          });
 
           this.recorridoActivo = false;
           this.recorridoActualId = null;
@@ -479,7 +526,14 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
         },
         error: (error) => {
           console.error('❌ Error finalizando recorrido:', error);
-          alert(error?.error?.message || 'Error al finalizar recorrido');
+          console.error('❌ Status:', error.status);
+          console.error('❌ Message:', error.message);
+          console.error('❌ Response:', error.error);
+
+          const mensaje = error?.error?.message ||
+                         'Error al finalizar recorrido';
+
+          alert(mensaje);
         }
       });
 

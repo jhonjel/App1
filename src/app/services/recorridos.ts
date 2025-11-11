@@ -76,13 +76,13 @@ export class RecorridosService {
     );
   }
 
-  // ✅ Finalizar Recorrido
+  // ✅ Finalizar Recorrido - CAMBIO: Usar POST en lugar de PUT
   finalizarRecorrido(
     recorridoId: string,
     data: FinalizarRecorridoRequest
   ): Observable<RecorridoResponse> {
     console.log(`📤 Finalizando recorrido ${recorridoId}:`, data);
-    return this.http.put<RecorridoResponse>(
+    return this.http.post<RecorridoResponse>(
       `${this.apiUrl}/${recorridoId}/finalizar`,
       data
     );
@@ -96,8 +96,11 @@ export class RecorridosService {
 
   // 🆕 Obtener Recorridos del Perfil
   obtenerRecorridosPorPerfil(perfilId: string): Observable<any> {
-    console.log(`📡 Obteniendo recorridos del perfil: ${perfilId}`);
-    return this.http.get<any>(`${this.apiUrl}?perfil_id=${perfilId}`);
+    console.log(`📡 Obteniendo mis recorridos del perfil: ${perfilId}`);
+    // ✅ Cambio: usar /api/misrecorridos en lugar de /api/recorridos
+    const url = `${environment.apiUrl}/misrecorridos?perfil_id=${perfilId}`;
+    console.log(`📡 URL completa: ${url}`);
+    return this.http.get<any>(url);
   }
 
   // 🆕 Obtener Posiciones del Recorrido
