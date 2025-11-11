@@ -7,7 +7,7 @@ import {
   NavController, IonText, IonSpinner
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { logOutOutline, playOutline, stopOutline, locationOutline, location, radioButtonOn, arrowBack, arrowBackOutline, eyeOutline, closeOutline, eyeOffOutline } from 'ionicons/icons';
+import { logOutOutline, playOutline, stopOutline, locationOutline, location, radioButtonOn, arrowBack, arrowBackOutline, eyeOutline, closeOutline, eyeOffOutline, alertCircleOutline } from 'ionicons/icons';
 import { VehiculoSeleccionadoService } from '../services/vehiculo-seleccionado';
 import { RecorridosService } from '../services/recorridos';
 import { RutasService } from '../services/rutas';
@@ -16,6 +16,7 @@ import { AuthService } from '../services/auth';
 
 declare var L: any;
 
+// ✅ INTERFACES
 interface Posicion {
   lat: number;
   lon: number;
@@ -27,6 +28,19 @@ interface Vehiculo {
   placa: string;
   marca: string;
   modelo: string;
+}
+
+interface RutaShape {
+  type: 'LineString' | 'MultiLineString';
+  coordinates: [number, number][] | [number, number][][];
+}
+
+interface Ruta {
+  id: string;
+  nombre_ruta: string;
+  perfil_id: string;
+  shape: RutaShape | string | null;
+  color_hex?: string;
 }
 
 @Component({
@@ -54,7 +68,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   ultimasPosiciones: Posicion[] = [];
 
   // Rutas
-  rutasDisponibles: any[] = [];
+  rutasDisponibles: Ruta[] = [];
   rutaSeleccionadaId: string | null = null;
   cargandoRutas = false;
   capasRutas: Map<string, any> = new Map();
@@ -76,7 +90,8 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   ) {
     addIcons({
       arrowBackOutline, playOutline, stopOutline, radioButtonOn, location,
-      locationOutline, arrowBack, logOutOutline, eyeOutline, closeOutline, eyeOffOutline
+      locationOutline, arrowBack, logOutOutline, eyeOutline, closeOutline,
+      eyeOffOutline, alertCircleOutline
     });
 
     this.vehiculoSeleccionadoService.getVehiculoObservable().subscribe(vehiculo => {
@@ -173,17 +188,32 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       const lat = 4.7110;
       const lng = -74.0721;
 
-      this.map = L.map('map').setView([lat, lng], 13);
+      this.map = L.map('map', {
+        preferCanvas: true,
+        zoomControl: true,
+        maxZoom: 18,
+        minZoom: 10
+      }).setView([lat, lng], 13);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
+        maxZoom: 18,
+        minZoom: 10,
+        maxNativeZoom: 18,
+        tms: false,
+        crossOrigin: true,
+        errorTileUrl: '',
+        continuousWorld: false,
+        noWrap: false,
+        bounds: L.latLngBounds(L.latLng(2.0, -79.0), L.latLng(6.0, -69.0))
       }).addTo(this.map);
 
       setTimeout(() => {
-        this.map.invalidateSize();
-        this.obtenerUbicacionActual();
-      }, 200);
+        if (this.map) {
+          this.map.invalidateSize();
+          this.obtenerUbicacionActual();
+        }
+      }, 300);
 
       console.log('✅ Mapa inicializado correctamente');
     } catch (error) {
@@ -251,73 +281,87 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   // ==================== RECORRIDO ====================
 
   async iniciarRecorrido() {
-  console.log('🎬 Iniciando recorrido...');
+    console.log('🎬 Iniciando recorrido...');
 
-  if (!this.vehiculoSeleccionado) {
-    alert('No hay vehículo seleccionado');
-    return;
-  }
+    if (!this.vehiculoSeleccionado) {
+      alert('No hay vehículo seleccionado');
+      return;
+    }
 
-  if (!this.posicionActual) {
-    alert('Esperando ubicación GPS...');
-    this.obtenerUbicacionActual();
-    return;
-  }
+    if (!this.rutaSeleccionadaId) {
+      alert('Por favor selecciona una ruta antes de iniciar el recorrido');
+      return;
+    }
 
-  if (this.recorridoActivo) {
-    alert('Ya hay un recorrido en curso');
-    return;
-  }
+    if (!this.posicionActual) {
+      alert('Esperando ubicación GPS...');
+      this.obtenerUbicacionActual();
+      return;
+    }
 
-  try {
-    // ✅ Si hay una ruta seleccionada, usarla. Si no, generar UUID
-    const rutaId = this.rutaSeleccionadaId || this.generarUUID();
+    if (this.recorridoActivo) {
+      alert('Ya hay un recorrido en curso');
+      return;
+    }
 
-    // ✅ Convertir vehiculoId a string si es número
-    const vehiculoId = String(this.vehiculoSeleccionado.id);
+    try {
+      // ✅ Usar el ID real del vehículo seleccionado (NO generar un nuevo UUID)
+      const vehiculoId = this.vehiculoSeleccionado.id?.toString() || '';
 
-    // ✅ Usar el perfil_id correcto
-    const perfilId = environment.tokenSecret;
-
-    const nuevoRecorrido = {
-      ruta_id: rutaId,
-      vehiculo_id: vehiculoId,
-      perfil_id: perfilId
-    };
-
-    console.log('📤 Enviando recorrido:', nuevoRecorrido);
-
-    this.recorridosService.iniciarRecorrido(nuevoRecorrido).subscribe({
-      next: (response) => {
-        console.log('✅ Recorrido iniciado:', response);
-
-        // El servidor retorna el ID del recorrido
-        this.recorridoActualId = response.data?.id || rutaId;
-        this.recorridoActivo = true;
-        this.posicionesCount = 0;
-        this.todasPosiciones = [];
-        this.ultimasPosiciones = [];
-
-        this.iniciarSeguimiento();
-        alert('Recorrido iniciado correctamente');
-      },
-      error: (error) => {
-        console.error('❌ Error iniciando recorrido:', error);
-        console.error('❌ Response:', error.error);
-
-        const mensaje = error?.error?.message ||
-                       error?.error?.errors?.ruta_id?.[0] ||
-                       'Error al iniciar recorrido. Verifica tu conexión.';
-
-        alert(mensaje);
+      if (!vehiculoId) {
+        alert('El vehículo no tiene un ID válido');
+        console.error('❌ Vehículo sin ID:', this.vehiculoSeleccionado);
+        return;
       }
-    });
 
-  } catch (error: any) {
-    console.error('❌ Error:', error);
-    alert('Error inesperado al iniciar recorrido');
+      // ✅ Usar el perfil_id correcto
+      const perfilId = environment.tokenSecret;
+
+      const nuevoRecorrido = {
+        ruta_id: this.rutaSeleccionadaId,
+        vehiculo_id: vehiculoId,
+        perfil_id: perfilId
+      };
+
+      console.log('📤 Enviando recorrido:', nuevoRecorrido);
+      console.log('🚗 Datos del vehículo usado:', {
+        id: this.vehiculoSeleccionado.id,
+        placa: this.vehiculoSeleccionado.placa,
+        marca: this.vehiculoSeleccionado.marca
+      });
+
+      this.recorridosService.iniciarRecorrido(nuevoRecorrido).subscribe({
+        next: (response) => {
+          console.log('✅ Recorrido iniciado:', response);
+
+          // El servidor retorna el ID del recorrido
+          this.recorridoActualId = response.data?.id || this.generarUUID();
+          this.recorridoActivo = true;
+          this.posicionesCount = 0;
+          this.todasPosiciones = [];
+          this.ultimasPosiciones = [];
+
+          this.iniciarSeguimiento();
+          alert('Recorrido iniciado correctamente');
+        },
+        error: (error) => {
+          console.error('❌ Error iniciando recorrido:', error);
+          console.error('❌ Response:', error.error);
+
+          const mensaje = error?.error?.message ||
+                         error?.error?.errors?.ruta_id?.[0] ||
+                         error?.error?.errors?.vehiculo_id?.[0] ||
+                         'Error al iniciar recorrido. Verifica tu conexión.';
+
+          alert(mensaje);
+        }
+      });
+
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      alert('Error inesperado al iniciar recorrido');
+    }
   }
-}
 
   iniciarSeguimiento() {
     if (!('geolocation' in navigator)) {
@@ -448,78 +492,166 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   // ==================== RUTAS ====================
 
   cargarRutasDisponibles() {
+    console.log('🔄 Cargando rutas disponibles...');
     this.cargandoRutas = true;
     const perfilId = environment.tokenSecret;
 
     this.rutasService.obtenerRutas(perfilId).subscribe({
       next: (response) => {
-        this.rutasDisponibles = response.data || [];
+        console.log('📦 Respuesta de rutas:', response);
+
+        // ✅ SOLUCIÓN: Parsear el shape si viene como string
+        this.rutasDisponibles = (response.data || []).map((ruta: any) => {
+          if (typeof ruta.shape === 'string') {
+            try {
+              ruta.shape = JSON.parse(ruta.shape);
+              console.log(`✅ Shape parseado para ruta: ${ruta.nombre_ruta}`);
+            } catch (error) {
+              console.error(`❌ Error parseando shape para ${ruta.nombre_ruta}:`, error);
+              ruta.shape = null;
+            }
+          }
+          return ruta as Ruta;
+        });
+
         this.cargandoRutas = false;
         console.log(`✅ ${this.rutasDisponibles.length} rutas cargadas`);
+
+        // Mostrar detalles de cada ruta
+        this.rutasDisponibles.forEach(ruta => {
+          const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
+          console.log(`📍 Ruta: ${ruta.nombre_ruta}`, {
+            id: ruta.id,
+            tieneShape: !!shapeParseado,
+            tipoShape: shapeParseado?.type,
+            coordenadas: shapeParseado?.coordinates?.length || 0
+          });
+        });
       },
       error: (error) => {
         console.error('❌ Error cargando rutas:', error);
+        console.error('❌ Detalles del error:', {
+          status: error.status,
+          message: error.message,
+          url: error.url
+        });
         this.cargandoRutas = false;
+        alert('Error al cargar las rutas. Verifica tu conexión.');
       }
     });
   }
 
   mostrarRutaEnMapa(rutaId: string) {
+    console.log('🗺️ Mostrando ruta en mapa:', rutaId);
+
     if (!this.map) {
       console.warn('⚠️ El mapa no está inicializado');
+      alert('El mapa aún no está listo. Espera un momento.');
       return;
     }
 
+    // Si hay una ruta seleccionada previamente, ocultarla
     if (this.rutaSeleccionadaId && this.capasRutas.has(this.rutaSeleccionadaId)) {
       const capaAnterior = this.capasRutas.get(this.rutaSeleccionadaId);
       this.map.removeLayer(capaAnterior);
+      this.capasRutas.delete(this.rutaSeleccionadaId);
     }
 
-    // ✅ Pasar perfil_id al obtener ruta
-    const perfilId = environment.tokenSecret;
+    // ✅ Buscar la ruta en las rutas ya cargadas en memoria
+    const ruta = this.rutasDisponibles.find(r => r.id === rutaId);
 
-    this.rutasService.obtenerRuta(rutaId, perfilId).subscribe({
-      next: (response) => {
-        const ruta = response.data || response;
-        console.log('📍 Ruta obtenida:', ruta);
+    if (!ruta) {
+      console.error('❌ Ruta no encontrada en memoria:', rutaId);
+      console.log('📋 Rutas disponibles:', this.rutasDisponibles.map(r => ({id: r.id, nombre: r.nombre_ruta})));
+      alert('Ruta no encontrada. Por favor recarga las rutas.');
+      return;
+    }
 
-        if (ruta.shape && ruta.shape.coordinates) {
-          this.dibujarRutaEnMapa(ruta);
-        } else {
-          console.warn('⚠️ La ruta no tiene geometría');
-        }
+    console.log('📍 Ruta encontrada en memoria:', ruta);
 
-        this.rutaSeleccionadaId = rutaId;
-      },
-      error: (error) => {
-        console.error('❌ Error obteniendo ruta:', error);
-        alert('Error al obtener la ruta. Verifica tu conexión.');
-      }
-    });
+    // Parsear si es string
+    const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
+
+    // Verificar si tiene geometría
+    if (!shapeParseado || !shapeParseado.coordinates || shapeParseado.coordinates.length === 0) {
+      console.warn('⚠️ La ruta no tiene geometría válida:', ruta);
+      alert('Esta ruta no tiene coordenadas para mostrar en el mapa');
+      return;
+    }
+
+    // Dibujar la ruta en el mapa
+    try {
+      this.dibujarRutaEnMapa(ruta);
+      this.rutaSeleccionadaId = rutaId;
+      console.log('✅ Ruta mostrada correctamente en el mapa');
+    } catch (error) {
+      console.error('❌ Error al dibujar ruta:', error);
+      alert('Error al mostrar la ruta en el mapa');
+    }
   }
 
-  private dibujarRutaEnMapa(ruta: any) {
-    if (!this.map || !ruta.shape || !ruta.shape.coordinates) {
+  private dibujarRutaEnMapa(ruta: Ruta) {
+    console.log('🎨 Dibujando ruta:', ruta.nombre_ruta);
+
+    if (!this.map) {
+      console.error('❌ Mapa no disponible');
+      return;
+    }
+
+    // Parsear shape si es string
+    const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
+
+    if (!shapeParseado || !shapeParseado.coordinates) {
+      console.error('❌ Ruta sin geometría válida');
       return;
     }
 
     try {
-      const coordenadas = ruta.shape.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
+      let coordenadas: [number, number][] = [];
 
-      const polyline = L.polyline(coordenadas, {
+      // ✅ Manejar tanto LineString como MultiLineString
+      if (shapeParseado.type === 'LineString') {
+        coordenadas = shapeParseado.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
+      } else if (shapeParseado.type === 'MultiLineString') {
+        // Para MultiLineString, tomar la primera línea
+        const primeraLinea = shapeParseado.coordinates[0] || [];
+        coordenadas = primeraLinea.map(([lng, lat]: [number, number]) => [lat, lng]);
+        console.log(`📐 MultiLineString con ${shapeParseado.coordinates.length} segmentos, usando primer segmento`);
+      } else {
+        console.warn(`⚠️ Tipo de geometría no soportado: ${shapeParseado.type}`);
+        return;
+      }
+
+      console.log('📐 Coordenadas convertidas:', coordenadas.slice(0, 3));
+      console.log(`📏 Total de puntos: ${coordenadas.length}`);
+
+      if (coordenadas.length < 2) {
+        console.error('❌ No hay suficientes coordenadas para dibujar');
+        return;
+      }
+
+      // ✅ Optimizar: simplificar coordenadas si hay demasiadas
+      const coordenadasOptimizadas = this.simplificarCoordenadas(coordenadas, 0.0001);
+      console.log(`✂️ Coordenadas optimizadas: ${coordenadasOptimizadas.length} puntos`);
+
+      const polyline = L.polyline(coordenadasOptimizadas, {
         color: '#667eea',
         weight: 4,
         opacity: 0.8,
         lineCap: 'round',
         lineJoin: 'round',
-        dashArray: '5, 5'
+        dashArray: '5, 5',
+        pane: 'overlayPane',
+        smoothFactor: 1.0
       });
 
       polyline.bindPopup(`
         <div class="ruta-popup">
           <strong>${ruta.nombre_ruta}</strong>
           <br>
-          <small>Puntos: ${coordenadas.length}</small>
+          <small>Puntos: ${coordenadasOptimizadas.length}</small>
+          <br>
+          <small>Tipo: ${shapeParseado.type}</small>
         </div>
       `);
 
@@ -527,12 +659,46 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       this.capasRutas.set(ruta.id, polyline);
 
       const bounds = polyline.getBounds();
-      this.map.fitBounds(bounds, { padding: [50, 50] });
+      this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
 
-      console.log(`✅ Ruta "${ruta.nombre_ruta}" dibujada en el mapa`);
+      console.log(`✅ Ruta "${ruta.nombre_ruta}" dibujada exitosamente`);
     } catch (error) {
       console.error('❌ Error dibujando ruta:', error);
+      throw error;
     }
+  }
+
+  // ✅ Método para simplificar coordenadas (algoritmo de Ramer-Douglas-Peucker)
+  private simplificarCoordenadas(coordenadas: [number, number][], tolerancia: number): [number, number][] {
+    if (coordenadas.length <= 2) return coordenadas;
+
+    const dmax = (p1: [number, number], p2: [number, number], line: [number, number][]) => {
+      let max = 0;
+      let index = 0;
+      for (let i = 1; i < line.length - 1; i++) {
+        const d = Math.abs((line[i][1] - p1[1]) * (p2[0] - p1[0]) - (line[i][0] - p1[0]) * (p2[1] - p1[1])) /
+                  Math.sqrt(Math.pow(p2[1] - p1[1], 2) + Math.pow(p2[0] - p1[0], 2));
+        if (d > max) {
+          index = i;
+          max = d;
+        }
+      }
+      return { index, max };
+    };
+
+    const rdp = (points: [number, number][], tol: number): [number, number][] => {
+      if (points.length < 3) return points;
+      const { index, max } = dmax(points[0], points[points.length - 1], points);
+      if (max > tol) {
+        const l1 = rdp(points.slice(0, index + 1), tol);
+        const l2 = rdp(points.slice(index), tol);
+        return [...l1.slice(0, -1), ...l2];
+      } else {
+        return [points[0], points[points.length - 1]];
+      }
+    };
+
+    return rdp(coordenadas, tolerancia);
   }
 
   ocultarRutaDelMapa(rutaId: string) {
@@ -548,16 +714,31 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   mostrarTodasRutasEnMapa() {
     if (!this.map) {
       console.warn('⚠️ El mapa no está inicializado');
+      alert('El mapa aún no está listo. Espera un momento.');
       return;
     }
 
+    // Limpiar rutas previas
+    this.limpiarRutasDelMapa();
+
     const colores = ['#667eea', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'];
     let colorIndex = 0;
+    let rutasDibujadas = 0;
 
-    this.rutasDisponibles.forEach((ruta) => {
-      if (ruta.shape && ruta.shape.coordinates && ruta.shape.coordinates.length > 0) {
+    this.rutasDisponibles.forEach((ruta: Ruta) => {
+      const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
+
+      if (shapeParseado && shapeParseado.coordinates && shapeParseado.coordinates.length > 0) {
         try {
-          const coordenadas = ruta.shape.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
+          let coordenadas: [number, number][] = [];
+
+          if (shapeParseado.type === 'LineString') {
+            coordenadas = shapeParseado.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
+          } else if (shapeParseado.type === 'MultiLineString') {
+            const primeraLinea = shapeParseado.coordinates[0] || [];
+            coordenadas = primeraLinea.map(([lng, lat]: [number, number]) => [lat, lng]);
+          }
+
           const color = colores[colorIndex % colores.length];
 
           const polyline = L.polyline(coordenadas, {
@@ -580,6 +761,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
           this.capasRutas.set(ruta.id, polyline);
 
           colorIndex++;
+          rutasDibujadas++;
           console.log(`✅ Ruta "${ruta.nombre_ruta}" agregada al mapa`);
         } catch (error) {
           console.error(`❌ Error dibujando ruta ${ruta.nombre_ruta}:`, error);
@@ -587,10 +769,17 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       }
     });
 
+    if (rutasDibujadas === 0) {
+      alert('No hay rutas con geometría válida para mostrar');
+      return;
+    }
+
     if (this.capasRutas.size > 0) {
       const grupo = L.featureGroup(Array.from(this.capasRutas.values()));
       this.map.fitBounds(grupo.getBounds(), { padding: [50, 50] });
     }
+
+    console.log(`✅ ${rutasDibujadas} rutas mostradas en el mapa`);
   }
 
   limpiarRutasDelMapa() {
@@ -600,6 +789,11 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     this.capasRutas.clear();
     this.rutaSeleccionadaId = null;
     console.log('✅ Todas las rutas eliminadas del mapa');
+  }
+
+  obtenerNombreRuta(rutaId: string): string {
+    const ruta = this.rutasDisponibles.find(r => r.id === rutaId);
+    return ruta?.nombre_ruta || 'Ruta sin nombre';
   }
 
   // ==================== UTILIDADES ====================
@@ -632,5 +826,21 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       this.authService.logout();
       this.navCtrl.navigateRoot('/login');
     }
+  }
+
+  // ==================== MÉTODOS DEL TEMPLATE ====================
+
+  obtenerCoordenadasLength(ruta: Ruta): number {
+    if (!ruta.shape) return 0;
+
+    const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
+
+    if (!shapeParseado || !shapeParseado.coordinates) return 0;
+
+    if (shapeParseado.type === 'MultiLineString' && Array.isArray(shapeParseado.coordinates[0])) {
+      return shapeParseado.coordinates[0].length;
+    }
+
+    return shapeParseado.coordinates.length || 0;
   }
 }

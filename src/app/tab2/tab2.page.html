@@ -127,8 +127,8 @@
           <!-- Información de la ruta -->
           <ion-label (click)="mostrarRutaEnMapa(ruta.id)" class="ruta-info">
             <h3>{{ ruta.nombre_ruta }}</h3>
-            <p *ngIf="ruta.shape?.coordinates">
-              📍 {{ ruta.shape.coordinates.length }} puntos
+            <p *ngIf="obtenerCoordenadasLength(ruta) > 0">
+              📍 {{ obtenerCoordenadasLength(ruta) }} puntos
             </p>
           </ion-label>
 
