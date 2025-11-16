@@ -12,7 +12,7 @@ import { VehiculoSeleccionadoService } from '../services/vehiculo-seleccionado';
 import { RecorridosService } from '../services/recorridos';
 import { RutasService } from '../services/rutas';
 import { environment } from '../../environments/environment';
-import { AuthService } from '../services/auth';
+import { AuthService } from '../services/auth.service';
 
 declare var L: any;
 

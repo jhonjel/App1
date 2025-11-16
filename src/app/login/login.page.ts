@@ -1,16 +1,9 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import {
-  IonContent, IonHeader, IonTitle, IonToolbar, IonCard,
-  IonCardHeader, IonCardTitle, IonCardContent, IonItem,
-  IonLabel, IonInput, IonButton, IonText, IonSpinner,
-  IonIcon
-} from '@ionic/angular/standalone';
-import { addIcons } from 'ionicons';
-import { mailOutline, lockClosedOutline, personAddOutline } from 'ionicons/icons';
-import { AuthService } from '../services/auth';
+import { IonicModule } from '@ionic/angular';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -18,31 +11,25 @@ import { AuthService } from '../services/auth';
   styleUrls: ['./login.page.scss'],
   standalone: true,
   imports: [
-    CommonModule,
+    IonicModule,
     FormsModule,
-    IonContent, IonHeader, IonTitle, IonToolbar, IonCard,
-    IonCardHeader, IonCardTitle, IonCardContent, IonItem,
-    IonLabel, IonInput, IonButton, IonText, IonSpinner, IonIcon
+    CommonModule
   ]
 })
 export class LoginPage {
-  email = '';
-  password = '';
-  cargando = false;
-  error = '';
+
+  email: string = '';
+  password: string = '';
+  error: string = '';
+  cargando: boolean = false;
 
   constructor(
     private authService: AuthService,
     private router: Router
-  ) {
-    addIcons({ mailOutline, lockClosedOutline, personAddOutline });
-  }
+  ) {}
 
-  ionViewWillEnter() {
-    // Si ya está autenticado, redirigir a tabs
-    if (this.authService.estaAutenticado()) {
-      this.router.navigate(['/tabs/tab1']);
-    }
+  irARegistro() {
+    this.router.navigate(['/registro']);
   }
 
   async login() {
@@ -60,26 +47,39 @@ export class LoginPage {
 
     this.cargando = true;
 
-    this.authService.login(this.email, this.password).subscribe({
-      next: (response) => {
-        console.log('✅ Login exitoso:', response);
-        this.cargando = false;
-        this.router.navigate(['/tabs/tab1']);
-      },
-      error: (err) => {
-        console.error('❌ Error en login:', err);
-        this.error = err.error?.message || 'Error al iniciar sesión. Verifica tus credenciales.';
-        this.cargando = false;
-      }
-    });
-  }
+    try {
+      await this.authService.login(this.email, this.password);
+      this.cargando = false;
 
-  irARegistro() {
-    this.router.navigate(['/registro']);
+      // Redirigir a la primera pestaña
+      this.router.navigate(['/tabs/tab1']);
+
+    } catch (err: any) {
+      this.cargando = false;
+
+      // Mensajes de error amigables
+      switch (err?.code) {
+        case 'auth/user-not-found':
+          this.error = 'No existe una cuenta con este email';
+          break;
+        case 'auth/wrong-password':
+          this.error = 'Contraseña incorrecta';
+          break;
+        case 'auth/invalid-login-credentials':
+          this.error = 'Credenciales incorrectas';
+          break;
+        default:
+          this.error = err?.message || 'Error al iniciar sesión';
+      }
+    }
   }
 
   private validarEmail(email: string): boolean {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
+    const re = /\S+@\S+\.\S+/;
+    return re.test(email);
   }
 }
+
+
+
+

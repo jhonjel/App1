@@ -1,24 +1,28 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { AuthService } from '../services/auth';
+import { AuthService } from '../services/auth.service';
+import { from, switchMap } from 'rxjs';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
 
-  // Si la petición es al servidor local de autenticación, agregar el token
+  // Solo agregar token a ciertas URLs
   if (req.url.includes('localhost:3000')) {
-    const token = authService.getToken();
-
-    if (token) {
-      req = req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
+    return from(authService.getToken()).pipe(
+      switchMap(token => {
+        if (token) {
+          req = req.clone({
+            setHeaders: {
+              Authorization: `Bearer ${token}`
+            }
+          });
         }
-      });
-    }
+        return next(req);
+      })
+    );
   }
-
-  // Para las otras APIs (como la de vehículos), mantener la autorización original
 
   return next(req);
 };
+
+

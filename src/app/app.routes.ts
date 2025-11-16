@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
 import { AuthGuard } from './guards/auth-guard';
 
 export const routes: Routes = [
@@ -12,16 +13,17 @@ export const routes: Routes = [
   },
   {
     path: '',
-    loadChildren: () => import('./tabs/tabs.routes').then((m) => m.routes),
-    canActivate: [AuthGuard] // Proteger todas las rutas de tabs
+    loadChildren: () => import('./tabs/tabs.routes').then(m => m.routes),
+    canActivate: [() => inject(AuthGuard).canActivate()]   // ← CORREGIDO
+  },
+  {
+    path: 'rutas',
+    loadComponent: () => import('./rutas/rutas.page').then(m => m.CrearRutaComponent)
   },
   {
     path: '**',
     redirectTo: 'login',
     pathMatch: 'full'
-  },
-  {
-    path: 'rutas',
-    loadComponent: () => import('./rutas/rutas.page').then( m => m.CrearRutaComponent)
   }
 ];
+
