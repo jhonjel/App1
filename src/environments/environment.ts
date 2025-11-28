@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://apirecoleccion.gonzaloandreslucio.com/api',
+  apiUrl: 'https://apirecoleccion.gonzaloandreslucio.com/api',
   tokenSecret: 'febeed33-ed10-4126-b4c7-73756db1f368',
 
   firebaseConfig: {
