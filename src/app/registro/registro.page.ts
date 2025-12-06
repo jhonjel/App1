@@ -22,6 +22,7 @@ export class RegistroPage {
   email: string = '';
   password: string = '';
   confirmarPassword: string = '';
+  rol: 'admin' | 'visitante' = 'visitante'; // Por defecto visitante
   error: string = '';
   cargando: boolean = false;
 
@@ -51,16 +52,18 @@ export class RegistroPage {
     this.cargando = true;
 
     try {
-      await this.authService.registro(this.email, this.password, this.nombre);
+      await this.authService.registro(this.email, this.password, this.nombre, this.rol);
       this.cargando = false;
-      this.router.navigate(['/tabs/tab1']);
+
+      // Redirigir según el rol
+      if (this.rol === 'visitante') {
+        this.router.navigate(['/mapa-vehiculos']);
+      } else {
+        this.router.navigate(['/tabs/tab1']);
+      }
     } catch (err: any) {
       this.cargando = false;
       this.error = err?.message || 'Error al crear la cuenta';
     }
   }
 }
-
-
-
-

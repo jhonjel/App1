@@ -51,8 +51,17 @@ export class LoginPage {
       await this.authService.login(this.email, this.password);
       this.cargando = false;
 
-      // Redirigir a la primera pestaña
-      this.router.navigate(['/tabs/tab1']);
+      // ✅ Redirigir según el rol del usuario
+      const rol = this.authService.getRole();
+      console.log('👤 Rol detectado:', rol);
+
+      if (rol === 'visitante') {
+        console.log('➡️ Redirigiendo a mapa (visitante)');
+        this.router.navigate(['/mapa-vehiculos']);
+      } else {
+        console.log('➡️ Redirigiendo a tabs (admin)');
+        this.router.navigate(['/tabs/tab1']);
+      }
 
     } catch (err: any) {
       this.cargando = false;
@@ -79,7 +88,3 @@ export class LoginPage {
     return re.test(email);
   }
 }
-
-
-
-

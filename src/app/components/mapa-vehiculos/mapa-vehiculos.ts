@@ -1,6 +1,3 @@
-// Archivo: src/app/components/mapa-vehiculos/mapa-vehiculos.ts
-// ✅ VERSIÓN COMPLETA CORREGIDA - Lee coordenadas del campo "geom" (GeoJSON)
-
 import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -15,10 +12,11 @@ import { addIcons } from 'ionicons';
 import {
   arrowBackOutline, refreshOutline, carOutline, locationOutline,
   eyeOutline, eyeOffOutline, navigateOutline, searchOutline,
-  alertCircleOutline, stopCircleOutline
+  alertCircleOutline, stopCircleOutline, logOutOutline
 } from 'ionicons/icons';
 import { RecorridosService } from '../../services/recorridos';
 import { VehiculosService } from '../../services/vehiculos';
+import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 
 declare var L: any;
@@ -61,23 +59,29 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
   cargando = false;
   busqueda = '';
   errorMensaje = '';
+  esVisitante = false; // ✅ NUEVO
 
   constructor(
     private recorridosService: RecorridosService,
     private vehiculosService: VehiculosService,
     private navCtrl: NavController,
     private toastController: ToastController,
-    private alertController: AlertController
+    private alertController: AlertController,
+    private authService: AuthService // ✅ NUEVO
   ) {
     addIcons({
       arrowBackOutline, refreshOutline, carOutline, locationOutline,
       eyeOutline, eyeOffOutline, navigateOutline, searchOutline,
-      alertCircleOutline, stopCircleOutline
+      alertCircleOutline, stopCircleOutline, logOutOutline
     });
   }
 
   ngOnInit() {
     console.log('🗺️ Componente de mapa de vehículos inicializado');
+
+    // ✅ Verificar si es visitante
+    this.esVisitante = this.authService.isVisitante();
+    console.log('👤 Es visitante:', this.esVisitante);
   }
 
   ngAfterViewInit() {
@@ -233,7 +237,7 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  // ✅ FUNCIÓN CRÍTICA CORREGIDA - Extrae coordenadas del campo "geom"
+  // ✅ FUNCIÓN CRÍTICA - Extrae coordenadas del campo "geom"
   private normalizarPosicion(pos: any): PosicionNormalizada {
     console.log('🔍 Normalizando posición - Estructura completa:', JSON.stringify(pos, null, 2));
 
@@ -245,7 +249,6 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
       try {
         let geomObj;
 
-        // Si geom es string, parsearlo
         if (typeof pos.geom === 'string') {
           geomObj = JSON.parse(pos.geom);
           console.log('📍 geom parseado desde string:', geomObj);
@@ -254,9 +257,8 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
           console.log('📍 geom ya es objeto:', geomObj);
         }
 
-        // GeoJSON Point: { "type": "Point", "coordinates": [lon, lat] }
         if (geomObj.type === 'Point' && Array.isArray(geomObj.coordinates)) {
-          [lon, lat] = geomObj.coordinates; // ⚠️ IMPORTANTE: GeoJSON es [lon, lat]
+          [lon, lat] = geomObj.coordinates;
           console.log('✅ Coordenadas extraídas de geom (GeoJSON):', { lat, lon });
         }
       } catch (error) {
@@ -264,7 +266,7 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
       }
     }
 
-    // ✅ PRIORIDAD 2: Intentar otros formatos si no encontró en geom
+    // ✅ PRIORIDAD 2: Otros formatos
     if (!lat || !lon) {
       lat = pos.lat || pos.latitude || pos.latitud || pos.y ||
             pos.Lat || pos.Latitude || pos.LATITUDE ||
@@ -275,19 +277,18 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
             pos.coord?.lon || pos.coord?.lng || pos.coordinates?.lon || pos.location?.lon;
     }
 
-    // ✅ PRIORIDAD 3: Intentar extraer de un posible array de coordenadas [lon, lat]
+    // ✅ PRIORIDAD 3: Array de coordenadas
     if (!lat && !lon && Array.isArray(pos.coordinates)) {
       [lon, lat] = pos.coordinates;
       console.log('✅ Coordenadas extraídas de array coordinates:', { lat, lon });
     }
 
-    // ✅ PRIORIDAD 4: Intentar extraer de un objeto geometry (formato GeoJSON alternativo)
+    // ✅ PRIORIDAD 4: Objeto geometry
     if (!lat && !lon && pos.geometry && pos.geometry.coordinates) {
       [lon, lat] = pos.geometry.coordinates;
       console.log('✅ Coordenadas extraídas de geometry.coordinates:', { lat, lon });
     }
 
-    // Fecha - también puede venir como capturado_ts
     const fecha = pos.fecha_registro || pos.created_at || pos.timestamp ||
                   pos.ts_registro || pos.fecha || pos.date || pos.capturado_ts;
 
@@ -298,12 +299,6 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
     };
 
     console.log('📍 Resultado final de normalización:', resultado);
-    console.log('📍 Tipos:', {
-      lat: typeof resultado.lat,
-      lon: typeof resultado.lon,
-      esNumeroLat: !isNaN(resultado.lat),
-      esNumeroLon: !isNaN(resultado.lon)
-    });
 
     return resultado;
   }
@@ -510,6 +505,12 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
   // ==================== FINALIZAR RECORRIDO ====================
 
   async finalizarRecorrido(vehiculoConPosicion: VehiculoConPosicion) {
+    // ✅ Verificar si es visitante
+    if (this.esVisitante) {
+      this.mostrarToast('No tienes permisos para finalizar recorridos', 'warning');
+      return;
+    }
+
     const alert = await this.alertController.create({
       header: '¿Finalizar Recorrido?',
       message: `¿Estás seguro de finalizar el recorrido del vehículo <strong>${vehiculoConPosicion.vehiculo.placa}</strong>?`,
@@ -545,7 +546,6 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
           'success'
         );
 
-        // Remover del mapa
         if (vehiculoConPosicion.marker && this.map) {
           this.map.removeLayer(vehiculoConPosicion.marker);
         }
@@ -553,12 +553,10 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
           this.map.removeLayer(vehiculoConPosicion.polyline);
         }
 
-        // Remover de la lista
         this.vehiculosConPosicion = this.vehiculosConPosicion.filter(
           v => v.recorrido.id !== recorridoId
         );
 
-        // Recargar si no quedan vehículos
         if (this.vehiculosConPosicion.length === 0) {
           this.errorMensaje = 'No hay más vehículos con recorridos activos.';
         }
@@ -740,6 +738,7 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
       return this.vehiculosConPosicion;
     }
 
+
     const busquedaLower = this.busqueda.toLowerCase();
     return this.vehiculosConPosicion.filter(v =>
       v.vehiculo.placa.toLowerCase().includes(busquedaLower) ||
@@ -771,6 +770,34 @@ export class MapaVehiculosPage implements OnInit, OnDestroy, AfterViewInit {
   }
 
   volver() {
-    this.navCtrl.navigateBack('/tabs/tab1');
+    if (this.esVisitante) {
+      this.cerrarSesion();
+    } else {
+      this.navCtrl.navigateBack('/tabs/tab1');
+    }
+  }
+
+  // ✅ NUEVO: Método para cerrar sesión
+  async cerrarSesion() {
+    const alert = await this.alertController.create({
+      header: 'Cerrar Sesión',
+      message: '¿Estás seguro que deseas cerrar sesión?',
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Cerrar Sesión',
+          role: 'confirm',
+          handler: () => {
+            this.authService.logout();
+            this.navCtrl.navigateRoot('/login');
+          }
+        }
+      ]
+    });
+
+    await alert.present();
   }
 }

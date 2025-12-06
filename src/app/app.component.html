@@ -1,8 +1,13 @@
 <!-- Archivo: src/app/app.component.html -->
 
 <ion-app>
-  <!-- Menú lateral -->
-  <ion-menu contentId="main-content" side="start" menuId="first" type="overlay">
+  <!-- Menú lateral - SOLO para admins -->
+  <ion-menu
+    *ngIf="!esVisitante"
+    contentId="main-content"
+    side="start"
+    menuId="first"
+    type="overlay">
     <ion-header>
       <ion-toolbar color="primary">
         <ion-title>Menú</ion-title>
@@ -22,7 +27,7 @@
           <ion-label>Crear Ruta</ion-label>
         </ion-item>
 
-        <!-- 🆕 Mapa en Tiempo Real -->
+        <!-- Mapa en Tiempo Real -->
         <ion-item routerLink="/mapa-vehiculos" button>
           <ion-icon name="map-outline" slot="start"></ion-icon>
           <ion-label>Mapa en Tiempo Real</ion-label>

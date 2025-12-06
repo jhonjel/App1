@@ -66,6 +66,32 @@
             ></ion-input>
           </ion-item>
 
+          <!-- ✅ NUEVO: Selector de Rol -->
+          <ion-card class="rol-card">
+            <ion-card-header>
+              <ion-card-subtitle>Selecciona tu tipo de cuenta</ion-card-subtitle>
+            </ion-card-header>
+            <ion-card-content>
+              <ion-radio-group [(ngModel)]="rol" name="rol">
+                <ion-item lines="none">
+                  <ion-radio value="visitante" slot="start"></ion-radio>
+                  <ion-label>
+                    <h3>👁️ Visitante</h3>
+                    <p>Solo ver mapa en tiempo real</p>
+                  </ion-label>
+                </ion-item>
+
+                <ion-item lines="none">
+                  <ion-radio value="admin" slot="start"></ion-radio>
+                  <ion-label>
+                    <h3>👨‍💼 Administrador</h3>
+                    <p>Gestionar vehículos y rutas</p>
+                  </ion-label>
+                </ion-item>
+              </ion-radio-group>
+            </ion-card-content>
+          </ion-card>
+
           <ion-text color="danger" *ngIf="error">
             <p class="ion-text-center error-message">{{ error }}</p>
           </ion-text>
