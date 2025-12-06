@@ -1,0 +1,184 @@
+<!-- Archivo: src/app/mapa-vehiculos/mapa-vehiculos.page.html -->
+<!-- ✅ CON BOTÓN PARA FINALIZAR RECORRIDOS -->
+
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-button (click)="volver()">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+    <ion-title>Vehículos en Tiempo Real</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="refrescarManualmente()">
+        <ion-icon name="refresh-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <!-- Pull to refresh -->
+  <ion-refresher slot="fixed" (ionRefresh)="refrescarManualmente($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <!-- Panel de controles -->
+  <ion-card class="controles-card">
+    <ion-card-content>
+      <!-- Buscador -->
+      <ion-searchbar
+        [(ngModel)]="busqueda"
+        placeholder="Buscar por placa, marca o modelo..."
+        animated="true"
+        debounce="300">
+      </ion-searchbar>
+
+      <!-- Estadísticas -->
+      <div class="stats-container">
+        <ion-chip color="primary">
+          <ion-icon name="car-outline"></ion-icon>
+          <ion-label>{{ vehiculosConPosicion.length }} vehículos activos</ion-label>
+        </ion-chip>
+        <ion-chip color="success" *ngIf="vehiculosConGPS > 0">
+          <ion-icon name="location-outline"></ion-icon>
+          <ion-label>{{ vehiculosConGPS }} con GPS</ion-label>
+        </ion-chip>
+      </div>
+
+      <!-- Botón para ver todos -->
+      <ion-button
+        expand="block"
+        fill="outline"
+        size="small"
+        (click)="mostrarTodosLosVehiculos()"
+        class="ion-margin-top"
+        *ngIf="vehiculosConGPS > 0">
+        <ion-icon name="navigate-outline" slot="start"></ion-icon>
+        Ver Todos en el Mapa
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Mapa -->
+  <div id="map-vehiculos" class="map-container"></div>
+
+  <!-- Lista de vehículos -->
+  <ion-card class="vehiculos-list-card" *ngIf="vehiculosFiltrados.length > 0">
+    <ion-card-header>
+      <ion-card-title>
+        <ion-icon name="car-outline"></ion-icon>
+        Lista de Vehículos
+      </ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list class="vehiculos-list">
+        <ion-item *ngFor="let item of vehiculosFiltrados" class="vehiculo-item">
+          <!-- Botón de visibilidad -->
+          <ion-icon
+            [name]="item.visible ? 'eye-outline' : 'eye-off-outline'"
+            slot="start"
+            [color]="item.visible ? 'primary' : 'medium'"
+            (click)="toggleVisibilidadVehiculo(item)"
+            class="visibility-icon">
+          </ion-icon>
+
+          <!-- Información del vehículo -->
+          <ion-label class="vehiculo-label">
+            <h2>
+              <strong>{{ item.vehiculo.marca }}</strong> - {{ item.vehiculo.placa }}
+            </h2>
+            <p class="modelo">{{ item.vehiculo.modelo }}</p>
+
+            <!-- Con posición GPS -->
+            <p class="posicion-info" *ngIf="item.ultimaPosicion && item.ultimaPosicion.lat && item.ultimaPosicion.lon">
+              📍 {{ item.ultimaPosicion.lat.toFixed(5) }}, {{ item.ultimaPosicion.lon.toFixed(5) }}
+            </p>
+
+            <!-- Sin posición GPS -->
+            <p class="posicion-info sin-gps" *ngIf="!item.ultimaPosicion || !item.ultimaPosicion.lat || !item.ultimaPosicion.lon">
+              📍 Sin posición GPS registrada
+            </p>
+
+            <!-- Fecha con validación -->
+            <p class="fecha-info" *ngIf="item.ultimaPosicion && item.ultimaPosicion.fecha_registro">
+              <small>{{ item.ultimaPosicion.fecha_registro | date:'short' }}</small>
+            </p>
+            <p class="fecha-info" *ngIf="item.ultimaPosicion && !item.ultimaPosicion.fecha_registro">
+              <small style="color: #999;">Sin fecha registrada</small>
+            </p>
+          </ion-label>
+
+          <!-- Botones de acción -->
+          <div slot="end" class="action-buttons">
+            <!-- Botón para centrar - SOLO si tiene posición -->
+            <ion-button
+              *ngIf="item.ultimaPosicion && item.ultimaPosicion.lat && item.ultimaPosicion.lon"
+              fill="clear"
+              size="small"
+              (click)="centrarEnVehiculo(item)"
+              class="center-button">
+              <ion-icon name="location-outline"></ion-icon>
+            </ion-button>
+
+            <!-- ✅ NUEVO: Botón para finalizar recorrido -->
+            <ion-button
+              fill="clear"
+              size="small"
+              color="danger"
+              (click)="finalizarRecorrido(item)"
+              class="stop-button">
+              <ion-icon name="stop-circle-outline"></ion-icon>
+            </ion-button>
+          </div>
+
+          <!-- Chip de advertencia - si NO tiene posición -->
+          <ion-chip *ngIf="!item.ultimaPosicion || !item.ultimaPosicion.lat" slot="end" color="warning">
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            <ion-label>Sin GPS</ion-label>
+          </ion-chip>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Loading -->
+  <div *ngIf="cargando" class="loading-overlay">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando vehículos...</p>
+  </div>
+
+  <!-- Estado vacío o error -->
+  <ion-card *ngIf="!cargando && vehiculosConPosicion.length === 0" class="empty-card">
+    <ion-card-content class="ion-text-center">
+      <ion-icon
+        [name]="errorMensaje ? 'alert-circle-outline' : 'car-outline'"
+        [color]="errorMensaje ? 'danger' : 'medium'"
+        class="empty-icon">
+      </ion-icon>
+
+      <h2 *ngIf="!errorMensaje">No hay vehículos activos</h2>
+      <h2 *ngIf="errorMensaje" style="color: var(--ion-color-danger);">Error</h2>
+
+      <p *ngIf="!errorMensaje">Los vehículos aparecerán aquí cuando inicien un recorrido</p>
+      <p *ngIf="errorMensaje">{{ errorMensaje }}</p>
+
+      <ion-button
+        *ngIf="errorMensaje"
+        expand="block"
+        color="primary"
+        (click)="refrescarManualmente()"
+        class="ion-margin-top">
+        <ion-icon name="refresh-outline" slot="start"></ion-icon>
+        Reintentar
+      </ion-button>
+
+      <ion-button
+        fill="outline"
+        (click)="volver()"
+        class="ion-margin-top">
+        Volver a Vehículos
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+</ion-content>

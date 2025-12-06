@@ -1,14 +1,21 @@
+// Archivo: src/app/tab2/tab2.page.ts
+// ✅ VERSIÓN COMPLETA - GPS con validaciones exhaustivas y logs detallados
+
 import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonMenuButton,
   IonButton, IonIcon, IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonCardSubtitle, IonGrid, IonRow, IonCol, IonItem, IonLabel, IonList,
-  NavController, IonText, IonSpinner
+  NavController, IonText, IonSpinner, ToastController
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { logOutOutline, playOutline, stopOutline, locationOutline, location, radioButtonOn, arrowBack, arrowBackOutline, eyeOutline, closeOutline, eyeOffOutline, alertCircleOutline } from 'ionicons/icons';
-import { VehiculoSeleccionadoService } from '../services/vehiculo-seleccionado';
+import {
+  logOutOutline, playOutline, stopOutline, locationOutline, location,
+  radioButtonOn, arrowBack, arrowBackOutline, eyeOutline, closeOutline,
+  eyeOffOutline, alertCircleOutline
+} from 'ionicons/icons';
+import { VehiculoSeleccionadoService, Vehiculo } from '../services/vehiculo-seleccionado';
 import { RecorridosService } from '../services/recorridos';
 import { RutasService } from '../services/rutas';
 import { environment } from '../../environments/environment';
@@ -16,18 +23,10 @@ import { AuthService } from '../services/auth.service';
 
 declare var L: any;
 
-// ✅ INTERFACES
 interface Posicion {
   lat: number;
   lon: number;
   fecha_registro?: Date;
-}
-
-interface Vehiculo {
-  id: number;
-  placa: string;
-  marca: string;
-  modelo: string;
 }
 
 interface RutaShape {
@@ -57,36 +56,36 @@ interface Ruta {
   ]
 })
 export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
-  // Vehículo
   vehiculoSeleccionado: Vehiculo | null = null;
-
-  // Recorrido
   recorridoActivo = false;
   recorridoActualId: string | null = null;
   posicionActual: Posicion | null = null;
   posicionesCount = 0;
   ultimasPosiciones: Posicion[] = [];
 
-  // Rutas
   rutasDisponibles: Ruta[] = [];
   rutaSeleccionadaId: string | null = null;
   cargandoRutas = false;
   capasRutas: Map<string, any> = new Map();
 
-  // Mapa
   private map: any;
   private marker: any;
   private polyline: any;
   private watchId: any;
   private todasPosiciones: [number, number][] = [];
   private leafletLoaded = false;
+  private intervaloPosiciones: any;
+  private ultimaLatitud: number | null = null;
+  private ultimaLongitud: number | null = null;
+  private marcadorInicial: any;
 
   constructor(
     private vehiculoSeleccionadoService: VehiculoSeleccionadoService,
     private recorridosService: RecorridosService,
     private rutasService: RutasService,
     private navCtrl: NavController,
-    private authService: AuthService
+    private authService: AuthService,
+    private toastController: ToastController
   ) {
     addIcons({
       arrowBackOutline, playOutline, stopOutline, radioButtonOn, location,
@@ -112,7 +111,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.vehiculoSeleccionado) {
       console.warn('⚠️ No hay vehículo seleccionado, redirigiendo...');
-      alert('Por favor selecciona un vehículo primero');
+      this.mostrarToast('Por favor selecciona un vehículo primero', 'warning');
       setTimeout(() => {
         this.navCtrl.navigateBack('/tabs/tab1');
       }, 100);
@@ -126,9 +125,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy() {
-    if (this.watchId) {
-      navigator.geolocation.clearWatch(this.watchId);
-    }
+    this.detenerSeguimiento();
     if (this.map) {
       this.map.remove();
     }
@@ -165,7 +162,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     };
     script.onerror = () => {
       console.error('❌ Error cargando Leaflet');
-      alert('Error al cargar el mapa. Por favor recarga la página.');
+      this.mostrarToast('Error al cargar el mapa', 'danger');
     };
     document.head.appendChild(script);
   }
@@ -197,15 +194,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
-        maxZoom: 18,
-        minZoom: 10,
-        maxNativeZoom: 18,
-        tms: false,
-        crossOrigin: true,
-        errorTileUrl: '',
-        continuousWorld: false,
-        noWrap: false,
-        bounds: L.latLngBounds(L.latLng(2.0, -79.0), L.latLng(6.0, -69.0))
+        maxZoom: 18
       }).addTo(this.map);
 
       setTimeout(() => {
@@ -223,14 +212,18 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
 
   obtenerUbicacionActual() {
     if (!('geolocation' in navigator)) {
-      alert('Tu navegador no soporta geolocalización');
+      this.mostrarToast('Tu navegador no soporta geolocalización', 'danger');
       return;
     }
+
+    console.log('📍 Solicitando ubicación actual...');
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
+
+        console.log('✅ Ubicación obtenida:', { lat, lon, accuracy: position.coords.accuracy });
 
         this.posicionActual = {
           lat: lat,
@@ -250,7 +243,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
           }
         }
 
-        console.log('✅ Ubicación obtenida:', lat, lon);
+        this.mostrarToast('✅ Ubicación GPS obtenida', 'success');
       },
       (error) => {
         console.error('❌ Error obteniendo ubicación:', error);
@@ -268,7 +261,7 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
             break;
         }
 
-        alert(mensaje);
+        this.mostrarToast(mensaje, 'danger');
       },
       {
         enableHighAccuracy: true,
@@ -281,90 +274,61 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
   // ==================== RECORRIDO ====================
 
   async iniciarRecorrido() {
-    console.log('🎬 Iniciando recorrido...');
+    console.log('🎬 ===== INICIANDO RECORRIDO =====');
 
     if (!this.vehiculoSeleccionado) {
-      alert('No hay vehículo seleccionado');
+      this.mostrarToast('No hay vehículo seleccionado', 'warning');
       return;
     }
 
     if (!this.rutaSeleccionadaId) {
-      alert('Por favor selecciona una ruta antes de iniciar el recorrido');
+      this.mostrarToast('Por favor selecciona una ruta antes de iniciar el recorrido', 'warning');
       return;
     }
 
     if (!this.posicionActual) {
-      alert('Esperando ubicación GPS...');
+      this.mostrarToast('⏳ Esperando ubicación GPS...', 'warning');
       this.obtenerUbicacionActual();
       return;
     }
 
     if (this.recorridoActivo) {
-      alert('Ya hay un recorrido en curso');
+      this.mostrarToast('Ya hay un recorrido en curso', 'warning');
       return;
     }
 
     try {
-      // ✅ Usar el ID real del vehículo seleccionado (NO generar un nuevo UUID)
-      const vehiculoId = this.vehiculoSeleccionado.id?.toString() || '';
+      const vehiculoId = this.vehiculoSeleccionado.id;
 
       if (!vehiculoId) {
-        alert('El vehículo no tiene un ID válido');
-        console.error('❌ Vehículo sin ID:', this.vehiculoSeleccionado);
+        this.mostrarToast('El vehículo no tiene un ID válido', 'danger');
         return;
       }
 
-      // ✅ Usar el perfil_id correcto
       const perfilId = environment.tokenSecret;
 
       const nuevoRecorrido = {
         ruta_id: this.rutaSeleccionadaId,
-        vehiculo_id: vehiculoId,
+        vehiculo_id: String(vehiculoId),
         perfil_id: perfilId
       };
 
-      console.log('📤 Enviando recorrido:', nuevoRecorrido);
-      console.log('🚗 Datos del vehículo usado:', {
-        id: this.vehiculoSeleccionado.id,
-        placa: this.vehiculoSeleccionado.placa,
-        marca: this.vehiculoSeleccionado.marca
-      });
+      console.log('📤 Enviando solicitud de inicio de recorrido:', nuevoRecorrido);
 
       this.recorridosService.iniciarRecorrido(nuevoRecorrido).subscribe({
         next: (response) => {
-          console.log('✅ Recorrido iniciado - RESPUESTA COMPLETA:', response);
-          console.log('📋 Estructura de response:', {
-            tieneData: !!response.data,
-            dataTipo: typeof response.data,
-            dataKeys: Object.keys(response.data || {}),
-            id: response.data?.id,
-            _id: (response.data as any)?._id,
-            recorrido_id: (response.data as any)?.recorrido_id,
-            message: response.message,
-            allKeys: Object.keys(response)
-          });
+          console.log('✅ Recorrido iniciado - RESPUESTA:', response);
 
-          // ✅ Intentar obtener el ID de diferentes formas
           let recorridoId = response.data?.id ||
                            (response.data as any)?._id ||
                            (response.data as any)?.recorrido_id ||
                            (response as any)?.id;
 
-          console.log('🔍 ID obtenido de:', {
-            'response.data?.id': response.data?.id,
-            'response.data?._id': (response.data as any)?._id,
-            'response.data?.recorrido_id': (response.data as any)?.recorrido_id,
-            'response?.id': (response as any)?.id,
-            idFinal: recorridoId
-          });
-
-          // ✅ Guardar el ID del recorrido retornado por la API
           this.recorridoActualId = recorridoId;
 
           if (!this.recorridoActualId) {
-            console.error('❌ La API no retornó un ID de recorrido válido');
-            console.error('❌ RESPUESTA COMPLETA:', JSON.stringify(response, null, 2));
-            alert('Error: No se recibió ID del recorrido. Verifica los logs de consola.');
+            console.error('❌ No se recibió ID del recorrido');
+            this.mostrarToast('Error: No se recibió ID del recorrido', 'danger');
             return;
           }
 
@@ -373,41 +337,133 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
           this.todasPosiciones = [];
           this.ultimasPosiciones = [];
 
-          console.log(`🔑 ID del recorrido guardado: ${this.recorridoActualId}`);
+          console.log(`🔑 Recorrido iniciado con ID: ${this.recorridoActualId}`);
+
+          // ✅ GUARDAR POSICIÓN INICIAL INMEDIATAMENTE
+          this.guardarPosicionInicial();
+
+          // Iniciar seguimiento continuo
           this.iniciarSeguimiento();
-          alert('Recorrido iniciado correctamente');
+
+          this.mostrarToast('✅ Recorrido iniciado correctamente', 'success');
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('❌ Error iniciando recorrido:', error);
-          console.error('❌ Response:', error.error);
 
           const mensaje = error?.error?.message ||
                          error?.error?.errors?.ruta_id?.[0] ||
                          error?.error?.errors?.vehiculo_id?.[0] ||
-                         'Error al iniciar recorrido. Verifica tu conexión.';
+                         'Error al iniciar recorrido';
 
-          alert(mensaje);
+          this.mostrarToast(mensaje, 'danger');
         }
       });
 
     } catch (error: any) {
       console.error('❌ Error:', error);
-      alert('Error inesperado al iniciar recorrido');
+      this.mostrarToast('Error inesperado al iniciar recorrido', 'danger');
     }
+  }
+
+  // ✅ GUARDAR POSICIÓN INICIAL
+  guardarPosicionInicial() {
+    if (!this.posicionActual || !this.recorridoActualId) {
+      console.warn('⚠️ No se puede guardar posición inicial');
+      return;
+    }
+
+    const { lat, lon } = this.posicionActual;
+
+    console.log('📍 ===== GUARDANDO POSICIÓN INICIAL =====');
+    console.log('📍 Coordenadas:', { lat, lon });
+    console.log('📍 Tipos:', { lat: typeof lat, lon: typeof lon });
+
+    // Agregar marcador verde para posición inicial
+    if (this.map) {
+      const iconoInicial = L.divIcon({
+        html: `
+          <div style="
+            background: #2dd36f;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 3px solid white;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            🚩
+          </div>
+        `,
+        className: 'custom-inicio-marker',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40]
+      });
+
+      this.marcadorInicial = L.marker([lat, lon], { icon: iconoInicial })
+        .addTo(this.map)
+        .bindPopup(`
+          <div style="text-align: center;">
+            <h3 style="margin: 0 0 8px 0; color: #2dd36f;">
+              <strong>🚩 Inicio del Recorrido</strong>
+            </h3>
+            <p style="margin: 4px 0;"><strong>Vehículo:</strong> ${this.vehiculoSeleccionado?.placa}</p>
+            <p style="margin: 4px 0; font-size: 11px; color: #666;">
+              ${new Date().toLocaleString()}
+            </p>
+          </div>
+        `);
+    }
+
+    // Enviar a la API
+    this.enviarPosicionAAPI(lat, lon, true);
   }
 
   iniciarSeguimiento() {
     if (!('geolocation' in navigator)) {
-      alert('Geolocalización no disponible');
+      this.mostrarToast('Geolocalización no disponible', 'danger');
       return;
     }
 
+    console.log('🛰️ ===== INICIANDO SEGUIMIENTO GPS =====');
+
     this.watchId = navigator.geolocation.watchPosition(
       (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+
+        console.log(`📍 Nueva posición GPS:`, {
+          lat,
+          lon,
+          accuracy: accuracy.toFixed(2) + 'm',
+          timestamp: new Date(position.timestamp).toLocaleTimeString()
+        });
+
+        // Solo procesar si tiene buena precisión (menos de 50 metros)
+        if (accuracy > 50) {
+          console.warn(`⚠️ Precisión baja (${accuracy.toFixed(2)}m), esperando mejor señal...`);
+          return;
+        }
+
+        this.posicionActual = {
+          lat: lat,
+          lon: lon,
+          fecha_registro: new Date()
+        };
+
+        this.actualizarMarcadorEnMapa(lat, lon);
         this.guardarPosicion(position);
       },
-      (error) => {
-        console.error('❌ Error en seguimiento:', error);
+      (error: any) => {
+        console.error('❌ Error en seguimiento GPS:', error);
+        console.error('Código de error:', error.code);
+        console.error('Mensaje:', error.message);
       },
       {
         enableHighAccuracy: true,
@@ -416,16 +472,87 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       }
     );
 
-    console.log('✅ Seguimiento GPS iniciado');
+    // Intervalo adicional de envío cada 10 segundos
+    this.intervaloPosiciones = setInterval(() => {
+      if (this.posicionActual && this.recorridoActivo && this.recorridoActualId) {
+        console.log('⏰ Enviando posición periódica (cada 10s)...');
+        this.enviarPosicionAAPI(this.posicionActual.lat, this.posicionActual.lon, false);
+      }
+    }, 10000); // Cada 10 segundos
+
+    console.log('✅ Seguimiento GPS iniciado correctamente');
+  }
+
+  actualizarMarcadorEnMapa(lat: number, lon: number) {
+    if (!this.map) return;
+
+    if (this.marker) {
+      this.marker.setLatLng([lat, lon]);
+    } else {
+      this.marker = L.marker([lat, lon]).addTo(this.map)
+        .bindPopup('Tu ubicación');
+    }
+
+    this.todasPosiciones.push([lat, lon]);
+
+    if (this.polyline) {
+      this.polyline.setLatLngs(this.todasPosiciones);
+    } else if (this.todasPosiciones.length > 1) {
+      this.polyline = L.polyline(this.todasPosiciones, {
+        color: 'blue',
+        weight: 3
+      }).addTo(this.map);
+    }
+
+    this.map.setView([lat, lon]);
   }
 
   async guardarPosicion(position: GeolocationPosition) {
     if (!this.recorridoActivo || !this.recorridoActualId) {
+      console.warn('⚠️ No hay recorrido activo');
       return;
     }
 
     const lat = position.coords.latitude;
     const lon = position.coords.longitude;
+
+    // Verificar distancia mínima (5 metros)
+    if (this.ultimaLatitud !== null && this.ultimaLongitud !== null) {
+      const distancia = this.calcularDistancia(
+        this.ultimaLatitud, this.ultimaLongitud,
+        lat, lon
+      );
+
+      if (distancia < 0.005) { // 5 metros
+        console.log(`⏭️ Posición muy cercana (${(distancia * 1000).toFixed(1)}m), omitiendo`);
+        return;
+      }
+    }
+
+    this.enviarPosicionAAPI(lat, lon, false);
+  }
+
+  // ✅ FUNCIÓN CRÍTICA - ENVIAR POSICIÓN A LA API
+  enviarPosicionAAPI(lat: number, lon: number, esPosicionInicial: boolean) {
+    if (!this.recorridoActivo || !this.recorridoActualId) {
+      console.warn('⚠️ No hay recorrido activo, no se puede enviar posición');
+      return;
+    }
+
+    console.log('📤 ===== ENVIANDO POSICIÓN A API =====');
+    console.log('📍 Recorrido ID:', this.recorridoActualId);
+    console.log('📍 Es posición inicial:', esPosicionInicial);
+
+    // ✅ VALIDAR QUE LAT Y LON SEAN NÚMEROS VÁLIDOS
+    if (typeof lat !== 'number' || isNaN(lat)) {
+      console.error('❌ ERROR: lat no es válido:', lat, typeof lat);
+      return;
+    }
+
+    if (typeof lon !== 'number' || isNaN(lon)) {
+      console.error('❌ ERROR: lon no es válido:', lon, typeof lon);
+      return;
+    }
 
     const nuevaPosicion: Posicion = {
       lat: lat,
@@ -433,113 +560,127 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       fecha_registro: new Date()
     };
 
-    this.posicionActual = nuevaPosicion;
-
     try {
-      // ✅ Nombres correctos según la API
+      // ✅ ASEGURAR QUE SEAN NÚMEROS
       const dataPosicion = {
-        lat: lat,
-        lon: lon,
+        lat: Number(lat),
+        lon: Number(lon),
         perfil_id: environment.tokenSecret
       };
 
-      console.log(`📍 Enviando posición ${this.posicionesCount + 1}:`, dataPosicion);
+      console.log(`📤 Enviando posición ${this.posicionesCount + 1}:`, dataPosicion);
+      console.log('🔍 Tipos de datos:', {
+        lat: typeof dataPosicion.lat,
+        lon: typeof dataPosicion.lon,
+        perfil_id: typeof dataPosicion.perfil_id
+      });
 
       this.recorridosService.registrarPosicion(this.recorridoActualId, dataPosicion).subscribe({
         next: (response) => {
-          console.log(`📍 Posición ${this.posicionesCount + 1} guardada en API:`, response);
+          this.posicionesCount++;
+          console.log(`✅ Posición ${this.posicionesCount} guardada correctamente`);
+          console.log('📥 Response:', response);
+
+          this.ultimaLatitud = lat;
+          this.ultimaLongitud = lon;
+
+          this.ultimasPosiciones.unshift(nuevaPosicion);
+          if (this.ultimasPosiciones.length > 5) {
+            this.ultimasPosiciones.pop();
+          }
+
+          if (esPosicionInicial) {
+            this.mostrarToast(`✅ Posición inicial registrada (${this.posicionesCount})`, 'success');
+          }
         },
-        error: (error) => {
-          console.error('❌ Error guardando posición en API:', error);
+        error: (error: any) => {
+          console.error('❌ Error guardando posición:', error);
+          console.error('❌ Status:', error.status);
+          console.error('❌ Error body:', error.error);
+          
+          this.mostrarToast(
+            `Error al guardar posición: ${error.error?.message || 'Error desconocido'}`,
+            'danger'
+          );
         }
       });
 
-      this.posicionesCount++;
-      this.ultimasPosiciones.unshift(nuevaPosicion);
-      if (this.ultimasPosiciones.length > 5) {
-        this.ultimasPosiciones.pop();
-      }
-
-      if (this.map) {
-        if (this.marker) {
-          this.marker.setLatLng([lat, lon]);
-        }
-
-        this.todasPosiciones.push([lat, lon]);
-
-        if (this.polyline) {
-          this.polyline.setLatLngs(this.todasPosiciones);
-        } else {
-          this.polyline = L.polyline(this.todasPosiciones, {
-            color: 'blue',
-            weight: 3
-          }).addTo(this.map);
-        }
-
-        this.map.setView([lat, lon]);
-      }
-
     } catch (error) {
-      console.error('❌ Error guardando posición:', error);
+      console.error('❌ Error en enviarPosicionAAPI:', error);
+    }
+  }
+
+  calcularDistancia(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  detenerSeguimiento() {
+    console.log('🛑 Deteniendo seguimiento GPS...');
+    
+    if (this.watchId) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+      console.log('✅ watchPosition detenido');
+    }
+    
+    if (this.intervaloPosiciones) {
+      clearInterval(this.intervaloPosiciones);
+      this.intervaloPosiciones = null;
+      console.log('✅ Intervalo de posiciones detenido');
     }
   }
 
   async finalizarRecorrido() {
-    console.log('🛑 Finalizando recorrido...');
-    console.log(`📋 ID del recorrido a finalizar: ${this.recorridoActualId}`);
+    console.log('🛑 ===== FINALIZANDO RECORRIDO =====');
 
     if (!this.recorridoActivo || !this.recorridoActualId) {
-      alert('No hay recorrido activo');
-      console.warn('⚠️ recorridoActivo:', this.recorridoActivo);
-      console.warn('⚠️ recorridoActualId:', this.recorridoActualId);
+      this.mostrarToast('No hay recorrido activo', 'warning');
       return;
     }
 
-    if (this.watchId) {
-      navigator.geolocation.clearWatch(this.watchId);
-    }
+    this.detenerSeguimiento();
 
     try {
       const dataFinalizar = {
         perfil_id: environment.tokenSecret
       };
 
-      console.log('📤 Datos a enviar:', {
-        recorridoId: this.recorridoActualId,
-        data: dataFinalizar
-      });
-
       this.recorridosService.finalizarRecorrido(this.recorridoActualId, dataFinalizar).subscribe({
         next: (response) => {
           console.log('✅ Recorrido finalizado:', response);
-          console.log('📊 Resumen del recorrido:', {
-            id: response.data?.id,
-            estado: response.data?.estado,
-            fecha_fin: response.data?.fecha_fin,
-            total_posiciones: response.data?.total_posiciones
-          });
 
           this.recorridoActivo = false;
           this.recorridoActualId = null;
+          this.ultimaLatitud = null;
+          this.ultimaLongitud = null;
 
-          alert(`Recorrido finalizado. Total de posiciones: ${this.posicionesCount}`);
+          // Limpiar marcador inicial
+          if (this.marcadorInicial && this.map) {
+            this.map.removeLayer(this.marcadorInicial);
+            this.marcadorInicial = null;
+          }
+
+          this.mostrarToast(
+            `✅ Recorrido finalizado. ${this.posicionesCount} posiciones registradas`,
+            'success'
+          );
         },
-        error: (error) => {
+        error: (error: any) => {
           console.error('❌ Error finalizando recorrido:', error);
-          console.error('❌ Status:', error.status);
-          console.error('❌ Message:', error.message);
-          console.error('❌ Response:', error.error);
-
-          const mensaje = error?.error?.message ||
-                         'Error al finalizar recorrido';
-
-          alert(mensaje);
+          this.mostrarToast(error?.error?.message || 'Error al finalizar recorrido', 'danger');
         }
       });
 
     } catch (error: any) {
       console.error('❌ Error:', error);
-      alert('Error inesperado al finalizar recorrido');
+      this.mostrarToast('Error inesperado al finalizar recorrido', 'danger');
     }
   }
 
@@ -552,14 +693,10 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
 
     this.rutasService.obtenerRutas(perfilId).subscribe({
       next: (response) => {
-        console.log('📦 Respuesta de rutas:', response);
-
-        // ✅ SOLUCIÓN: Parsear el shape si viene como string
         this.rutasDisponibles = (response.data || []).map((ruta: any) => {
           if (typeof ruta.shape === 'string') {
             try {
               ruta.shape = JSON.parse(ruta.shape);
-              console.log(`✅ Shape parseado para ruta: ${ruta.nombre_ruta}`);
             } catch (error) {
               console.error(`❌ Error parseando shape para ${ruta.nombre_ruta}:`, error);
               ruta.shape = null;
@@ -570,189 +707,83 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
 
         this.cargandoRutas = false;
         console.log(`✅ ${this.rutasDisponibles.length} rutas cargadas`);
-
-        // Mostrar detalles de cada ruta
-        this.rutasDisponibles.forEach(ruta => {
-          const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
-          console.log(`📍 Ruta: ${ruta.nombre_ruta}`, {
-            id: ruta.id,
-            tieneShape: !!shapeParseado,
-            tipoShape: shapeParseado?.type,
-            coordenadas: shapeParseado?.coordinates?.length || 0
-          });
-        });
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('❌ Error cargando rutas:', error);
-        console.error('❌ Detalles del error:', {
-          status: error.status,
-          message: error.message,
-          url: error.url
-        });
         this.cargandoRutas = false;
-        alert('Error al cargar las rutas. Verifica tu conexión.');
+        this.mostrarToast('Error al cargar las rutas', 'danger');
       }
     });
   }
 
   mostrarRutaEnMapa(rutaId: string) {
-    console.log('🗺️ Mostrando ruta en mapa:', rutaId);
-
     if (!this.map) {
-      console.warn('⚠️ El mapa no está inicializado');
-      alert('El mapa aún no está listo. Espera un momento.');
+      this.mostrarToast('El mapa aún no está listo', 'warning');
       return;
     }
 
-    // Si hay una ruta seleccionada previamente, ocultarla
     if (this.rutaSeleccionadaId && this.capasRutas.has(this.rutaSeleccionadaId)) {
       const capaAnterior = this.capasRutas.get(this.rutaSeleccionadaId);
       this.map.removeLayer(capaAnterior);
       this.capasRutas.delete(this.rutaSeleccionadaId);
     }
 
-    // ✅ Buscar la ruta en las rutas ya cargadas en memoria
     const ruta = this.rutasDisponibles.find(r => r.id === rutaId);
-
     if (!ruta) {
-      console.error('❌ Ruta no encontrada en memoria:', rutaId);
-      console.log('📋 Rutas disponibles:', this.rutasDisponibles.map(r => ({id: r.id, nombre: r.nombre_ruta})));
-      alert('Ruta no encontrada. Por favor recarga las rutas.');
+      this.mostrarToast('Ruta no encontrada', 'danger');
       return;
     }
 
-    console.log('📍 Ruta encontrada en memoria:', ruta);
-
-    // Parsear si es string
     const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
-
-    // Verificar si tiene geometría
     if (!shapeParseado || !shapeParseado.coordinates || shapeParseado.coordinates.length === 0) {
-      console.warn('⚠️ La ruta no tiene geometría válida:', ruta);
-      alert('Esta ruta no tiene coordenadas para mostrar en el mapa');
+      this.mostrarToast('Esta ruta no tiene coordenadas válidas', 'warning');
       return;
     }
 
-    // Dibujar la ruta en el mapa
     try {
       this.dibujarRutaEnMapa(ruta);
       this.rutaSeleccionadaId = rutaId;
-      console.log('✅ Ruta mostrada correctamente en el mapa');
     } catch (error) {
       console.error('❌ Error al dibujar ruta:', error);
-      alert('Error al mostrar la ruta en el mapa');
+      this.mostrarToast('Error al mostrar la ruta', 'danger');
     }
   }
 
   private dibujarRutaEnMapa(ruta: Ruta) {
-    console.log('🎨 Dibujando ruta:', ruta.nombre_ruta);
+    if (!this.map) return;
 
-    if (!this.map) {
-      console.error('❌ Mapa no disponible');
-      return;
-    }
-
-    // Parsear shape si es string
     const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
-
-    if (!shapeParseado || !shapeParseado.coordinates) {
-      console.error('❌ Ruta sin geometría válida');
-      return;
-    }
+    if (!shapeParseado || !shapeParseado.coordinates) return;
 
     try {
       let coordenadas: [number, number][] = [];
 
-      // ✅ Manejar tanto LineString como MultiLineString
       if (shapeParseado.type === 'LineString') {
         coordenadas = shapeParseado.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
       } else if (shapeParseado.type === 'MultiLineString') {
-        // Para MultiLineString, tomar la primera línea
         const primeraLinea = shapeParseado.coordinates[0] || [];
         coordenadas = primeraLinea.map(([lng, lat]: [number, number]) => [lat, lng]);
-        console.log(`📐 MultiLineString con ${shapeParseado.coordinates.length} segmentos, usando primer segmento`);
-      } else {
-        console.warn(`⚠️ Tipo de geometría no soportado: ${shapeParseado.type}`);
-        return;
       }
 
-      console.log('📐 Coordenadas convertidas:', coordenadas.slice(0, 3));
-      console.log(`📏 Total de puntos: ${coordenadas.length}`);
+      if (coordenadas.length < 2) return;
 
-      if (coordenadas.length < 2) {
-        console.error('❌ No hay suficientes coordenadas para dibujar');
-        return;
-      }
-
-      // ✅ Optimizar: simplificar coordenadas si hay demasiadas
-      const coordenadasOptimizadas = this.simplificarCoordenadas(coordenadas, 0.0001);
-      console.log(`✂️ Coordenadas optimizadas: ${coordenadasOptimizadas.length} puntos`);
-
-      const polyline = L.polyline(coordenadasOptimizadas, {
+      const polyline = L.polyline(coordenadas, {
         color: '#667eea',
         weight: 4,
         opacity: 0.8,
-        lineCap: 'round',
-        lineJoin: 'round',
-        dashArray: '5, 5',
-        pane: 'overlayPane',
-        smoothFactor: 1.0
+        dashArray: '5, 5'
       });
 
-      polyline.bindPopup(`
-        <div class="ruta-popup">
-          <strong>${ruta.nombre_ruta}</strong>
-          <br>
-          <small>Puntos: ${coordenadasOptimizadas.length}</small>
-          <br>
-          <small>Tipo: ${shapeParseado.type}</small>
-        </div>
-      `);
-
+      polyline.bindPopup(`<strong>${ruta.nombre_ruta}</strong>`);
       polyline.addTo(this.map);
       this.capasRutas.set(ruta.id, polyline);
 
       const bounds = polyline.getBounds();
       this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-
-      console.log(`✅ Ruta "${ruta.nombre_ruta}" dibujada exitosamente`);
     } catch (error) {
       console.error('❌ Error dibujando ruta:', error);
       throw error;
     }
-  }
-
-  // ✅ Método para simplificar coordenadas (algoritmo de Ramer-Douglas-Peucker)
-  private simplificarCoordenadas(coordenadas: [number, number][], tolerancia: number): [number, number][] {
-    if (coordenadas.length <= 2) return coordenadas;
-
-    const dmax = (p1: [number, number], p2: [number, number], line: [number, number][]) => {
-      let max = 0;
-      let index = 0;
-      for (let i = 1; i < line.length - 1; i++) {
-        const d = Math.abs((line[i][1] - p1[1]) * (p2[0] - p1[0]) - (line[i][0] - p1[0]) * (p2[1] - p1[1])) /
-                  Math.sqrt(Math.pow(p2[1] - p1[1], 2) + Math.pow(p2[0] - p1[0], 2));
-        if (d > max) {
-          index = i;
-          max = d;
-        }
-      }
-      return { index, max };
-    };
-
-    const rdp = (points: [number, number][], tol: number): [number, number][] => {
-      if (points.length < 3) return points;
-      const { index, max } = dmax(points[0], points[points.length - 1], points);
-      if (max > tol) {
-        const l1 = rdp(points.slice(0, index + 1), tol);
-        const l2 = rdp(points.slice(index), tol);
-        return [...l1.slice(0, -1), ...l2];
-      } else {
-        return [points[0], points[points.length - 1]];
-      }
-    };
-
-    return rdp(coordenadas, tolerancia);
   }
 
   ocultarRutaDelMapa(rutaId: string) {
@@ -761,23 +792,16 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       this.map.removeLayer(capa);
       this.capasRutas.delete(rutaId);
       this.rutaSeleccionadaId = null;
-      console.log(`✅ Ruta ocultada del mapa`);
     }
   }
 
   mostrarTodasRutasEnMapa() {
-    if (!this.map) {
-      console.warn('⚠️ El mapa no está inicializado');
-      alert('El mapa aún no está listo. Espera un momento.');
-      return;
-    }
+    if (!this.map) return;
 
-    // Limpiar rutas previas
     this.limpiarRutasDelMapa();
 
     const colores = ['#667eea', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'];
     let colorIndex = 0;
-    let rutasDibujadas = 0;
 
     this.rutasDisponibles.forEach((ruta: Ruta) => {
       const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
@@ -794,46 +818,27 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
           }
 
           const color = colores[colorIndex % colores.length];
-
           const polyline = L.polyline(coordenadas, {
             color: color,
             weight: 3,
-            opacity: 0.6,
-            lineCap: 'round',
-            lineJoin: 'round'
+            opacity: 0.6
           });
 
-          polyline.bindPopup(`
-            <div class="ruta-popup">
-              <strong>${ruta.nombre_ruta}</strong>
-              <br>
-              <small>Puntos: ${coordenadas.length}</small>
-            </div>
-          `);
-
+          polyline.bindPopup(`<strong>${ruta.nombre_ruta}</strong>`);
           polyline.addTo(this.map);
           this.capasRutas.set(ruta.id, polyline);
 
           colorIndex++;
-          rutasDibujadas++;
-          console.log(`✅ Ruta "${ruta.nombre_ruta}" agregada al mapa`);
         } catch (error) {
           console.error(`❌ Error dibujando ruta ${ruta.nombre_ruta}:`, error);
         }
       }
     });
 
-    if (rutasDibujadas === 0) {
-      alert('No hay rutas con geometría válida para mostrar');
-      return;
-    }
-
     if (this.capasRutas.size > 0) {
       const grupo = L.featureGroup(Array.from(this.capasRutas.values()));
       this.map.fitBounds(grupo.getBounds(), { padding: [50, 50] });
     }
-
-    console.log(`✅ ${rutasDibujadas} rutas mostradas en el mapa`);
   }
 
   limpiarRutasDelMapa() {
@@ -842,22 +847,29 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
     });
     this.capasRutas.clear();
     this.rutaSeleccionadaId = null;
-    console.log('✅ Todas las rutas eliminadas del mapa');
   }
 
-  obtenerNombreRuta(rutaId: string): string {
-    const ruta = this.rutasDisponibles.find(r => r.id === rutaId);
-    return ruta?.nombre_ruta || 'Ruta sin nombre';
+  obtenerCoordenadasLength(ruta: Ruta): number {
+    if (!ruta.shape) return 0;
+
+    const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
+    if (!shapeParseado || !shapeParseado.coordinates) return 0;
+
+    if (shapeParseado.type === 'MultiLineString' && Array.isArray(shapeParseado.coordinates[0])) {
+      return shapeParseado.coordinates[0].length;
+    }
+
+    return shapeParseado.coordinates.length || 0;
   }
 
-  // ==================== UTILIDADES ====================
-
-  private generarUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
+  async mostrarToast(mensaje: string, color: string = 'primary') {
+    const toast = await this.toastController.create({
+      message: mensaje,
+      duration: 3000,
+      color: color,
+      position: 'bottom'
     });
+    await toast.present();
   }
 
   volverAVehiculos() {
@@ -880,21 +892,5 @@ export class Tab2Page implements OnInit, OnDestroy, AfterViewInit {
       this.authService.logout();
       this.navCtrl.navigateRoot('/login');
     }
-  }
-
-  // ==================== MÉTODOS DEL TEMPLATE ====================
-
-  obtenerCoordenadasLength(ruta: Ruta): number {
-    if (!ruta.shape) return 0;
-
-    const shapeParseado = typeof ruta.shape === 'string' ? JSON.parse(ruta.shape) : ruta.shape;
-
-    if (!shapeParseado || !shapeParseado.coordinates) return 0;
-
-    if (shapeParseado.type === 'MultiLineString' && Array.isArray(shapeParseado.coordinates[0])) {
-      return shapeParseado.coordinates[0].length;
-    }
-
-    return shapeParseado.coordinates.length || 0;
   }
 }

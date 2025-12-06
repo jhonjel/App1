@@ -1,0 +1,241 @@
+// Archivo: src/app/mapa-vehiculos/mapa-vehiculos.page.scss
+// ✅ Estilos mejorados con botones de acción
+
+ion-content {
+  --background: #f8f9fa;
+}
+
+#map-vehiculos {
+  height: 50vh;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.controles-card {
+  margin: 10px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stats-container {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.vehiculos-list-card {
+  margin: 10px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.vehiculos-list {
+  padding: 0;
+}
+
+.vehiculo-item {
+  --background: #fff;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.2s ease;
+
+  &:hover {
+    --background: #f5f5f5;
+    transform: translateX(4px);
+  }
+
+  ion-label {
+    cursor: pointer;
+
+    h2 {
+      margin: 0 0 4px 0;
+      font-size: 1rem;
+      color: #1d1d1d;
+    }
+
+    p {
+      margin: 2px 0;
+      font-size: 0.85rem;
+      color: #666;
+
+      &.posicion-info {
+        color: #667eea;
+        font-weight: 500;
+      }
+
+      &.fecha-info {
+        font-size: 0.75rem;
+        color: #999;
+      }
+    }
+  }
+
+  ion-icon[slot="start"] {
+    cursor: pointer;
+    font-size: 24px;
+    margin-right: 12px;
+  }
+}
+
+// ✅ Estilos para botones de acción
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+
+  ion-button {
+    margin: 0;
+    --padding-start: 8px;
+    --padding-end: 8px;
+
+    ion-icon {
+      font-size: 20px;
+    }
+  }
+
+  .center-button {
+    --color: #667eea;
+  }
+
+  .stop-button {
+    --color: #eb445a;
+
+    &:hover {
+      --color: #c83939;
+    }
+  }
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+
+  ion-spinner {
+    --color: #667eea;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    color: #667eea;
+    font-weight: 600;
+  }
+}
+
+.empty-card {
+  margin: 20px;
+  border-radius: 12px;
+
+  ion-card-content {
+    padding: 2rem;
+
+    h2 {
+      color: #666;
+      font-size: 1.2rem;
+      margin: 1rem 0 0.5rem 0;
+    }
+
+    p {
+      color: #999;
+      font-size: 0.9rem;
+    }
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+}
+
+::ng-deep .custom-vehicle-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+// Responsive
+@media (max-width: 768px) {
+  #map-vehiculos {
+    height: 40vh;
+  }
+
+  .vehiculos-list-card {
+    max-height: 300px;
+  }
+
+  .vehiculo-item {
+    --padding-start: 8px;
+    --padding-end: 8px;
+
+    ion-label h2 {
+      font-size: 0.9rem;
+    }
+
+    ion-label p {
+      font-size: 0.8rem;
+    }
+  }
+
+  .action-buttons {
+    ion-button {
+      --padding-start: 6px;
+      --padding-end: 6px;
+
+      ion-icon {
+        font-size: 18px;
+      }
+    }
+  }
+
+  .stats-container {
+    ion-chip {
+      font-size: 0.85rem;
+    }
+  }
+}
+
+// Animaciones
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vehiculo-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+// Pulso para vehículos activos
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(102, 126, 234, 0);
+  }
+}
+
+.vehiculo-item:hover {
+  animation: pulse 2s infinite;
+}

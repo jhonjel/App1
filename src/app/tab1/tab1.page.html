@@ -1,27 +1,42 @@
+<!-- Archivo: src/app/tab1/tab1.page.html -->
+<!-- ✅ VERSIÓN MEJORADA - Muestra vehículos con recorridos activos -->
+
 <ion-header>
   <ion-toolbar color="primary">
     <ion-title>Vehículos</ion-title>
-    <!-- 🆕 Botón para crear ruta en la esquina derecha -->
     <ion-buttons slot="end">
       <ion-button routerLink="/tabs/crear-ruta" color="light">
         <ion-icon name="add-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      <ion-button routerLink="/mapa-vehiculos" color="light">
+        <ion-icon name="map-outline" slot="icon-only"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
+  <!-- Spinner de carga -->
   <ion-spinner *ngIf="cargando" name="crescent" class="ion-margin"></ion-spinner>
 
-  <!-- 📍 Tarjeta de información útil -->
+  <!-- Tarjeta de información -->
   <ion-card *ngIf="!cargando && vehiculos.length > 0" class="info-card">
     <ion-card-header>
       <ion-card-title>¿Qué deseas hacer?</ion-card-title>
     </ion-card-header>
     <ion-card-content>
       <p class="info-text">
-        Selecciona un vehículo para iniciar un recorrido o crea una nueva ruta.
+        Selecciona un vehículo para iniciar un recorrido, crea una nueva ruta o ve el mapa en tiempo real.
       </p>
+
+      <!-- ✅ NUEVO: Indicador de vehículos activos -->
+      <div *ngIf="vehiculosConRecorridoActivo.size > 0" class="recorridos-activos-info">
+        <ion-chip color="success">
+          <ion-icon name="radio-button-on"></ion-icon>
+          <ion-label>{{ vehiculosConRecorridoActivo.size }} vehículo(s) con recorrido activo</ion-label>
+        </ion-chip>
+      </div>
+
       <ion-button
         expand="block"
         color="success"
@@ -31,33 +46,82 @@
         <ion-icon name="add-circle-outline" slot="start"></ion-icon>
         Crear Nueva Ruta
       </ion-button>
+
+      <ion-button
+        expand="block"
+        color="primary"
+        routerLink="/mapa-vehiculos"
+        fill="outline"
+        class="ion-margin-top">
+        <ion-icon name="map-outline" slot="start"></ion-icon>
+        Ver Mapa en Tiempo Real
+      </ion-button>
     </ion-card-content>
   </ion-card>
 
-  <!-- 🚗 Lista de vehículos -->
+  <!-- Lista de vehículos -->
   <ion-list *ngIf="!cargando && vehiculos.length > 0">
     <ion-list-header>
       <ion-label>
         <h2>Mis Vehículos</h2>
       </ion-label>
     </ion-list-header>
-    <ion-item button detail="true" *ngFor="let v of vehiculos" (click)="seleccionarVehiculo(v)">
-      <ion-icon name="car-outline" slot="start" color="primary"></ion-icon>
+
+    <!-- ✅ MEJORADO: Indicador visual de recorridos activos -->
+    <ion-item
+      *ngFor="let v of vehiculos"
+      (click)="seleccionarVehiculo(v)"
+      [button]="!tieneRecorridoActivo(v.id.toString())"
+      [detail]="!tieneRecorridoActivo(v.id.toString())"
+      [disabled]="tieneRecorridoActivo(v.id.toString())"
+      [class.vehiculo-activo]="tieneRecorridoActivo(v.id.toString())">
+
+      <!-- Icono del vehículo -->
+      <ion-icon
+        [name]="tieneRecorridoActivo(v.id.toString()) ? 'radio-button-on' : 'car-outline'"
+        slot="start"
+        [color]="tieneRecorridoActivo(v.id.toString()) ? 'success' : 'primary'">
+      </ion-icon>
+
+      <!-- Información del vehículo -->
       <ion-label>
-        <h2>{{ v.marca }} - {{ v.placa }}</h2>
+        <h2>
+          {{ v.marca }} - {{ v.placa }}
+          <!-- ✅ Badge de recorrido activo -->
+          <ion-badge
+            *ngIf="tieneRecorridoActivo(v.id.toString())"
+            color="success"
+            class="badge-activo">
+            EN CURSO
+          </ion-badge>
+        </h2>
         <p>Modelo: {{ v.modelo }}</p>
+
+        <!-- ✅ Advertencia si está activo -->
+        <p *ngIf="tieneRecorridoActivo(v.id.toString())" class="texto-advertencia">
+          <ion-icon name="alert-circle-outline" class="icono-advertencia"></ion-icon>
+          Recorrido en curso - Finalízalo primero
+        </p>
       </ion-label>
+
+      <!-- ✅ Icono de bloqueo si está activo -->
+      <ion-icon
+        *ngIf="tieneRecorridoActivo(v.id.toString())"
+        name="lock-closed"
+        slot="end"
+        color="warning">
+      </ion-icon>
     </ion-item>
   </ion-list>
 
-  <!-- ⚠️ Sin vehículos -->
+  <!-- Sin vehículos -->
   <div *ngIf="!cargando && vehiculos.length === 0" class="empty-state">
     <ion-icon name="car-outline" class="empty-icon"></ion-icon>
     <h2>No hay vehículos registrados</h2>
     <p>Registra tu primer vehículo para comenzar</p>
   </div>
 
-  <!-- ❌ Error -->
+  <!-- Error -->
   <ion-text color="danger" *ngIf="error">
     <p class="ion-padding">{{ error }}</p>
   </ion-text>

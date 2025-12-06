@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
 
-import { IonApp, IonRouterOutlet, IonMenu, IonToolbar, IonHeader, IonTitle, IonList, IonContent, IonItem, IonLabel } from '@ionic/angular/standalone';
+import { IonApp, IonRouterOutlet, IonMenu, IonToolbar, IonHeader, IonTitle, IonList, IonContent, IonItem, IonLabel, IonIcon } from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
-  imports: [ IonLabel, IonItem, IonContent, IonList, IonTitle, IonHeader, IonToolbar, IonApp, IonRouterOutlet, IonMenu,],
+  imports: [IonIcon,  IonLabel, IonItem, IonContent, IonList, IonTitle, IonHeader, IonToolbar, IonApp, IonRouterOutlet, IonMenu,],
 })
 export class AppComponent {
   menuCtrl: any;
