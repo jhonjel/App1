@@ -8,7 +8,7 @@
 - Jeferson Cuero  
 - Potosi Reyes  
 - Jennifer Mondragón  
-- Jhon Estupiñan  
+- Jhon Estupiñan  lasso
 
 ---
 ---
